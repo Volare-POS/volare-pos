@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧營運日誌與進銷存系統 v12</title>
+    <title>VOLARE 智慧營運日誌與進銷存系統 v13</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -35,19 +35,25 @@
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        /* 需求4：主控台防跑位絕對物理隔離佈局 */
         .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 2.4fr;
+            display: flex;
             gap: 20px;
             align-items: start;
+            width: 100%;
         }
-        /* 主控台永遠保持在畫面上 Sticky PIN */
         .left-panel {
+            width: 380px; /* 死鎖主控台寬度，不論右邊資料多少左邊絕不跑位 */
+            flex-shrink: 0; 
             position: -webkit-sticky;
             position: sticky;
             top: 20px;
             max-height: calc(100vh - 40px);
             overflow-y: auto;
+        }
+        .right-panel {
+            flex-grow: 1;
+            min-width: 0; /* 防止表格撐開擠壓左邊 */
         }
         .card {
             background: var(--card-bg);
@@ -250,7 +256,7 @@
         }
         .log-box {
             background: #1a202c;
-            color: #63b3ed;
+            color: #66bb6a;
             font-family: monospace;
             padding: 10px;
             border-radius: 4px;
@@ -371,24 +377,28 @@
 
 <div class="container">
     <header>
-        <h1>VOLARE 智慧營運日誌與進銷存核心系統 v12</h1>
-        <div style="display: flex; gap: 15px; align-items: center; font-size:12px;">
-            <button onclick="openBackendModal()" style="background:#7f8c8d; width:auto; padding:5px 15px; font-size:13px;">⚙️ 進入管理員後台</button>
-            <span id="liveUpdateTime" style="color:#a0aec0; background:rgba(255,255,255,0.1); padding:5px 10px; border-radius:4px;">🟢 數據即時更新：載入中...</span>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <h1 style="margin:0; font-size: 22px;">VOLARE 智慧營運日誌核心系統</h1>
+            <span id="liveUpdateTime" style="color:#cbd5e0; font-size:11px;">🟢 數據即時更新：載入中...</span>
         </div>
+        <div style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 6px;">
+            <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">📅 營運日期 (預設今天)：</label>
+            <input type="date" id="currentDate" style="width: 160px; padding: 5px; border:none;" onchange="onMasterDateChange()">
+        </div>
+        <button onclick="openBackendModal()" style="background:#7f8c8d; width:auto; padding:8px 15px; font-size:13px; border-radius:4px;">⚙️ 進入管理員後台</button>
     </header>
 
     <div class="summary-boxes">
         <div class="box">
-            <div class="label" id="summaryTitle1">當前區間總票務收入</div>
+            <div class="label" id="summaryTitle1">當日總票務收入總計</div>
             <div class="value" id="dayTicketSum">$ 0 (0 人次)</div>
         </div>
         <div class="box" style="background:#f0fff4; border-color:#38a169;">
-            <div class="label" id="summaryTitle2" style="color:#276749;">當前區間總周邊淨營收</div>
+            <div class="label" id="summaryTitle2" style="color:#276749;">當日總周邊淨營收</div>
             <div class="value" id="dayGoodsSum" style="color:#22543d;">$ 0</div>
         </div>
         <div class="box" style="background:#fffaf0; border-color:#dd6b20;">
-            <div class="label" id="summaryTitle3" style="color:#7b341e;">當前區間總合營業額</div>
+            <div class="label" id="summaryTitle3" style="color:#7b341e;">當日總合營業額</div>
             <div class="value" id="dayTotalSum" style="color:#7b341e;">$ 0</div>
         </div>
     </div>
@@ -411,10 +421,6 @@
                 </div>
 
                 <div id="formTicket">
-                    <div class="form-group">
-                        <label>營運日期：</label>
-                        <input type="date" id="currentDate" onchange="syncMasterDateToQuery()">
-                    </div>
                     <div class="form-group">
                         <label>選擇節目</label>
                         <select id="ticketProgram"></select>
@@ -482,8 +488,8 @@
                             <input type="text" id="goodsDiscountReason" placeholder="例：特賣活動/配合異業">
                         </div>
                         <div class="form-group">
-                            <label style="color:#8a6d3b;">⚠️ 授權人主管姓名 (必填)</label>
-                            <input type="text" id="goodsDiscountAuthUser" placeholder="例：營運主管">
+                            <label style="color:#8a6d3b;">⚠️ 填寫人姓名 (必填)</label>
+                            <input type="text" id="goodsDiscountAuthUser" placeholder="請簽名">
                         </div>
                     </div>
                     <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">周邊登記</button>
@@ -492,37 +498,32 @@
         </div>
 
         <div class="right-panel">
-            <div class="card" style="border: 2px solid var(--primary-color);">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
-                    <div style="display:flex; align-items:center; gap:10px; font-size:14px; font-weight:bold; color:var(--primary-color);">
-                        <span>🔍 現場銷售紀錄區間動態查詢：</span>
-                        <input type="date" id="queryStart" style="width:150px; padding:6px;" onchange="loadDateData()">
-                        <span>至</span>
-                        <input type="date" id="queryEnd" style="width:150px; padding:6px;" onchange="loadDateData()">
-                    </div>
-                    <div style="font-size: 12px; color: #7f8c8d; background: #ebf8ff; padding: 6px 12px; border-radius: 4px;">
-                        💡 <strong>操作提示：</strong> 修改日期區間，下方所有分頁數據將全面即時連動加總！
-                    </div>
-                </div>
-            </div>
-
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom:15px;">
                     <div class="tabs" style="margin:0;">
                         <div class="tab active" id="viewTabDay" onclick="switchView('Day')">📋 當日營運明細</div>
                         <div class="tab" id="viewTabSession" onclick="switchView('Session')">🎬 場次播映調度總表</div>
-                        <div class="tab" id="viewTabMonth" onclick="switchView('Month')">📊 全月營收看板</div>
                         <div class="tab" id="viewTabStock" onclick="switchView('Stock')">📦 周邊進銷存盤點中心</div>
+                        <div class="tab" id="viewTabMonth" onclick="switchView('Month')">📊 全月營收看板 (總覽數據)</div>
                     </div>
-                    <button onclick="exportRangeData()" style="background:var(--success-color); width:auto; padding:7px 15px; font-size:13px;">📥 打包匯出此區間 Excel</button>
+                </div>
+
+                <div id="rangeSearchZone" style="display: none; background: #f1f5f9; padding: 15px; border-radius: 6px; margin-bottom: 15px; align-items: center; justify-content: space-between; gap: 10px; border-left: 5px solid var(--success-color);">
+                    <div style="display:flex; align-items:center; gap:10px; font-size:14px; font-weight:bold; color:var(--primary-color);">
+                        <span>🔍 總覽數據區間動態查詢：</span>
+                        <input type="date" id="expStart" style="width:145px; padding:5px;">
+                        <span>至</span>
+                        <input type="date" id="expEnd" style="width:145px; padding:5px;">
+                        <button onclick="triggerRangeQuery()" style="background:var(--primary-color); width:90px; padding:6px; font-size:13px;">確定查詢</button>
+                    </div>
+                    <button onclick="exportRangeData()" style="background:var(--success-color); width:auto; padding:8px 18px; font-size:13px;">📥 打包匯出 Excel</button>
                 </div>
 
                 <div id="viewDayZone">
-                    <h3>🎫 查詢區間 - 票券明細總覽</h3>
+                    <h3>🎫 當日票券明細列表</h3>
                     <table>
                         <thead>
                             <tr>
-                                <th>營運日期</th>
                                 <th>節目名稱</th>
                                 <th>場次時間</th>
                                 <th>票券種類</th>
@@ -536,11 +537,10 @@
                         <tbody id="ticketTableBody"></tbody>
                     </table>
 
-                    <h3 style="margin-top:25px;">🛍️ 查詢區間 - 周邊變動總覽</h3>
+                    <h3 style="margin-top:25px;">🛍️ 當日周邊變動明細</h3>
                     <table>
                         <thead>
                             <tr>
-                                <th>營運日期</th>
                                 <th>條碼</th>
                                 <th>品名</th>
                                 <th>異動類型</th>
@@ -548,7 +548,7 @@
                                 <th>數量</th>
                                 <th>折扣</th>
                                 <th>實收總價</th>
-                                <th>特殊折扣授權</th>
+                                <th>特殊折扣填寫</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -557,23 +557,42 @@
                 </div>
 
                 <div id="viewSessionZone" style="display:none;">
-                    <h3>🎬 查詢區間各場次售出人數即時調度加總表</h3>
+                    <h3>🎬 今日各場次主題與售出人數即時調度表</h3>
                     <table>
                         <thead>
                             <tr>
                                 <th>場次時間</th>
-                                <th>累計排片主題</th>
-                                <th>區間已售總人次</th>
-                                <th>單日剩餘可售座位參考</th>
-                                <th>座位狀態</th>
+                                <th>播映主題 / 登記影片項目</th>
+                                <th>已售出總人次</th>
+                                <th>影廳剩餘可售座位</th>
+                                <th>座位安全狀態</th>
                             </tr>
                         </thead>
                         <tbody id="sessionTableBody"></tbody>
                     </table>
                 </div>
 
+                <div id="viewStockZone" style="display:none;">
+                    <h3>📊 周邊商品動態進銷存與安全庫存盤點表</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>國際條碼</th>
+                                <th>商品品名</th>
+                                <th>商品單價</th>
+                                <th>初始庫存</th>
+                                <th>歷史累計銷售</th>
+                                <th>剩餘庫存</th>
+                                <th>安全庫存</th>
+                                <th>安全狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody"></tbody>
+                    </table>
+                </div>
+
                 <div id="viewMonthZone" style="display:none;">
-                    <h3>📅 歷史營業日加總清單</h3>
+                    <h3>📅 歷史營業日大合流總覽清單</h3>
                     <table>
                         <thead>
                             <tr>
@@ -588,47 +607,26 @@
                     </table>
                 </div>
 
-                <div id="viewStockZone" style="display:none;">
-                    <h3>📊 周邊商品動態進銷存與安全庫存盤點表</h3>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>國際條碼</th>
-                                <th>商品品名</th>
-                                <th>商品單價</th>
-                                <th>初始庫存</th>
-                                <th>區間累計銷售</th>
-                                <th>最新剩餘庫存</th>
-                                <th>安全庫存</th>
-                                <th>安全狀態</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stockTableBody"></tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// 權限配置
-let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || {
-    master: "5372858",
-    user: "42646262"
-};
+// 防弊密碼組
+let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 
-let programList = JSON.parse(localStorage.getItem('volare_programs_v12')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
-let ticketTypeList = JSON.parse(localStorage.getItem('volare_ticket_types_v12')) || ["一般單片票", "一般雙片票", "動漫單人票", "動漫雙人票", "極速賽車", "VIP特惠票", "團體優待票", "公關招待券", "愛心/敬老票"];
+let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
+let ticketTypeList = JSON.parse(localStorage.getItem('volare_ticket_types_v13')) || ["一般單片票", "一般雙片票", "動漫單人票", "動漫雙人票", "極速賽車", "VIP特惠票", "團體優待票", "公關招待券", "愛心/敬老票"];
 
 let defaultGoodsDb = {
     "4710000001": { name: "環保購物袋_手繪風台灣", price: 150, initStock: 100, safetyStock: 20 },
     "4710000002": { name: "巨人三層L型資料夾", price: 100, initStock: 150, safetyStock: 30 },
     "4710000003": { name: "巨人陶瓷馬克杯-艾連", price: 580, initStock: 50, safetyStock: 10 }
 };
-let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v12')) || defaultGoodsDb;
-let systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v12')) || {};
+let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v13')) || defaultGoodsDb;
+let systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 
 let currentView = 'Day';
 let currentBackendTab = 'Prog';
@@ -637,21 +635,35 @@ let confirmCallback = null;
 let currentActiveRole = ""; 
 let currentOperatorName = "";
 
-// 預設日期區間初始化
+// 區間查詢的暫存狀態變數
+let rangeQueryStart = "";
+let rangeQueryEnd = "";
+
+// 需求2：自動讀取今日電腦日期 TODAY 進行初始化
 const todayStr = new Date().toISOString().split('T')[0];
 document.getElementById('currentDate').value = todayStr;
-document.getElementById('queryStart').value = todayStr;
-document.getElementById('queryEnd').value = todayStr;
+document.getElementById('expStart').value = todayStr;
+document.getElementById('expEnd').value = todayStr;
+
+// 同步預增區間起訖
+rangeQueryStart = todayStr;
+rangeQueryEnd = todayStr;
 
 initStaticDropdowns();
-updateLiveTime();
+loadDateData();
 
-// 修正連動：當主控台營運日期變更時，自動將右側現場查詢區間同齊，防止丟失資料流
-function syncMasterDateToQuery() {
-    let masterDate = document.getElementById('currentDate').value;
-    document.getElementById('queryStart').value = masterDate;
-    document.getElementById('queryEnd').value = masterDate;
-    loadDateData(); // 即時重繪
+function onMasterDateChange() {
+    loadDateData();
+}
+
+// 需求3：區間查詢必須按下按鈕後才更新
+function triggerRangeQuery() {
+    let s = document.getElementById('expStart').value;
+    let e = document.getElementById('expEnd').value;
+    if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
+    rangeQueryStart = s;
+    rangeQueryEnd = e;
+    loadDateData(); // 刷新渲染
 }
 
 function switchForm(form) {
@@ -672,7 +684,6 @@ function showMsg(title, htmlText, isConfirm = false, callback = null) {
     document.getElementById('globalMsgBody').innerHTML = htmlText;
     let footer = document.getElementById('globalMsgFooter');
     footer.innerHTML = '';
-    
     if (isConfirm) {
         confirmCallback = callback;
         footer.innerHTML = `
@@ -706,6 +717,7 @@ function initStaticDropdowns() {
     const gSelect = document.getElementById('goodsType');
     gSelect.innerHTML = '';
     for(let barcode in goodsDatabase) {
+        // 需求2：去除選單後綴，單純顯示商品名稱
         gSelect.innerHTML += `<option value="${barcode}">${goodsDatabase[barcode].name}</option>`;
     }
     syncGoodsPrice();
@@ -726,28 +738,25 @@ function toggleDiscountAuthZone() {
 function pushLog(action) {
     let now = new Date();
     let timeStr = `${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-    let roleStr = currentActiveRole === 'master' ? '主要權限' : '一般使用者';
-    adminLogs.unshift(`[${timeStr}] 操作人:${currentOperatorName} (${roleStr}) -> ${action}`);
+    adminLogs.unshift(`[${timeStr}] 操作人:${currentOperatorName} (${currentActiveRole === 'master'?'主要':'一般'}) -> ${action}`);
     localStorage.setItem('volare_admin_logs', JSON.stringify(adminLogs));
     renderLogBox();
 }
-
 function renderLogBox() {
     let container = document.getElementById('adminLogContainer');
-    if(!container) return;
-    container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
+    if(container) container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
 }
 
-// 票務確定按鈕
+// 票務提報
 function addTicketSale() {
-    let date = document.getElementById('currentDate').value; 
+    let date = getActiveDate(); 
     let program = document.getElementById('ticketProgram').value;
     let time = document.getElementById('timeHour').value + ':' + document.getElementById('timeMin').value;
     let type = document.getElementById('ticketType').value;
     let qty = parseInt(document.getElementById('ticketQty').value);
     let price = parseInt(document.getElementById('ticketPrice').value);
     
-    if (!date) { showMsg('【提醒】', '請先選取正確的營運日期！'); return; }
+    if (!date) { showMsg('【提醒】', '請先選取營運日期！'); return; }
     if (!qty || qty < 1) { showMsg('【提醒】', '請輸入正確的張數！'); return; }
 
     if (type.includes("極速賽車")) { program = "--"; time = "--"; }
@@ -811,23 +820,21 @@ function executeTicketCommit(date, program, time, type, qty, price) {
     saveAndRender();
 }
 
-// 周邊登記手動按鈕 (隔離正常化)
+// 周邊手動登記
 function addGoodsSale() {
-    let date = document.getElementById('currentDate').value;
+    let date = getActiveDate();
     let barcode = document.getElementById('goodsType').value;
     let qty = parseInt(document.getElementById('goodsQty').value);
-    
     let discount = parseFloat(document.getElementById('goodsDiscount').value);
     let parsedDiscount = parseFloat(discount.toFixed(2));
     
-    if(!date) { showMsg('【提醒】', '請先選取正確的營運日期！'); return; }
     if(!barcode) { showMsg('【提醒】', '請先選擇周邊商品！'); return; }
     
     let reason = "", authUser = "";
     if (parsedDiscount !== 1.0) {
         reason = document.getElementById('goodsDiscountReason').value.trim();
         authUser = document.getElementById('goodsDiscountAuthUser').value.trim();
-        if(!reason || !authUser) { showMsg('【提醒】', '特殊折扣原因與填寫人姓名為必填項目！'); return; }
+        if(!reason || !authUser) { showMsg('【提醒】', '特殊折扣成因與填寫人姓名為必填項目！'); return; }
     }
     
     checkAndWarnSafetyStock(barcode, qty);
@@ -855,16 +862,16 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     let item = goodsDatabase[barcode];
     let expectedStock = item.initStock - (totalSoldBefore + salesNeeded);
     if (expectedStock < item.safetyStock) {
-        showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估剩餘將降至 ${expectedStock} 件，已低於安全水位 (${item.safetyStock} 件)！`);
+        showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
     }
 }
 
-// 條碼槍快刷事件 (完全外部解耦)
+// 條碼槍快速刷碼
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
         if (goodsDatabase[barcode]) {
-            let date = document.getElementById('currentDate').value;
+            let date = getActiveDate();
             checkAndWarnSafetyStock(barcode, -1);
             initDateKey(date);
             systemStorage[date].goods.push({
@@ -878,36 +885,26 @@ document.getElementById('barcodeScanner').addEventListener('keypress', function(
     }
 });
 
-// 后台管理驗證
+// 管理員後台
 function openBackendModal() {
     document.getElementById('backendModal').style.display = 'block';
     document.getElementById('backendAuthZone').style.display = 'block';
     document.getElementById('backendControlZone').style.display = 'none';
-    document.getElementById('backendPassword').value = '';
-    document.getElementById('backendOperator').value = '';
+    document.getElementById('backendPassword').value = ''; document.getElementById('backendOperator').value = '';
 }
-
 function verifyBackendPassword() {
     let operator = document.getElementById('backendOperator').value.trim();
     let inputPass = document.getElementById('backendPassword').value;
-    
-    if(!operator) { showMsg('【提醒】', "請務必填寫您的『操作人員姓名』以供後台稽核！"); return; }
+    if(!operator) { showMsg('【提醒】', "請輸入操作人員姓名！"); return; }
     
     if (inputPass === authConfig.master) {
-        currentActiveRole = "master";
-        currentOperatorName = operator;
-        unlockBackendControl();
-        pushLog("成功登入後台管理中心");
+        currentActiveRole = "master"; currentOperatorName = operator; unlockBackendControl(); pushLog("登入管理後台");
     } else if (inputPass === authConfig.user) {
-        currentActiveRole = "user";
-        currentOperatorName = operator;
-        unlockBackendControl();
-        pushLog("成功登入後台管理中心");
+        currentActiveRole = "user"; currentOperatorName = operator; unlockBackendControl(); pushLog("登入管理後台");
     } else {
-        showMsg('【提醒】', "驗證失敗：後台防弊密碼錯誤，拒絕調閱資料！");
+        showMsg('【提醒】', "防弊密碼錯誤，拒絕調閱！");
     }
 }
-
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none';
     document.getElementById('backendControlZone').style.display = 'block';
@@ -918,10 +915,8 @@ function unlockBackendControl() {
         document.getElementById('passwordEditZone').style.display = 'none';
         document.getElementById('passwordDeniedZone').style.display = 'block';
     }
-    renderBackendLists();
-    renderLogBox();
+    renderBackendLists(); renderLogBox();
 }
-
 function switchBackendTab(tab) {
     currentBackendTab = tab;
     document.querySelectorAll('#backendControlZone .tab').forEach(t => t.classList.remove('active'));
@@ -931,7 +926,6 @@ function switchBackendTab(tab) {
     document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none';
     document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
 }
-
 function renderBackendLists() {
     let pList = document.getElementById('backendProgList'); pList.innerHTML = '';
     programList.forEach((p, idx) => { pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div>`; });
@@ -939,49 +933,38 @@ function renderBackendLists() {
     ticketTypeList.forEach((t, idx) => { tList.innerHTML += `<div class="backend-list-item"><span>${t}</span><button class="btn-sm btn-accent" onclick="deleteTicket(${idx})">🗑️ 刪除</button></div>`; });
     let gList = document.getElementById('backendGoodsList'); gList.innerHTML = '<h4>現有周邊品項清單</h4>';
     for(let barcode in goodsDatabase) {
-        let item = goodsDatabase[barcode];
-        gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${item.name} ($${item.price})</span><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div>`;
+        gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div>`;
     }
 }
-
 function submitNewProgram() {
     let val = document.getElementById('newProgName').value.trim();
-    if(val) { programList.push(val); localStorage.setItem('volare_programs_v12', JSON.stringify(programList)); pushLog(`新增影片節目: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); }
+    if(val) { programList.push(val); localStorage.setItem('volare_programs_v13', JSON.stringify(programList)); pushLog(`新增影片節目: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); }
 }
-function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); localStorage.setItem('volare_programs_v12', JSON.stringify(programList)); pushLog(`刪除影片節目: ${old}`); renderBackendLists(); initStaticDropdowns(); }
-
+function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); localStorage.setItem('volare_programs_v13', JSON.stringify(programList)); pushLog(`刪除影片節目: ${old}`); renderBackendLists(); initStaticDropdowns(); }
 function submitNewTicket() {
     let val = document.getElementById('newTicketName').value.trim();
-    if(val) { ticketTypeList.push(val); localStorage.setItem('volare_ticket_types_v12', JSON.stringify(ticketTypeList)); pushLog(`新增營業票種: ${val}`); document.getElementById('newTicketName').value = ''; renderBackendLists(); initStaticDropdowns(); }
+    if(val) { ticketTypeList.push(val); localStorage.setItem('volare_ticket_types_v13', JSON.stringify(ticketTypeList)); pushLog(`新增營業票種: ${val}`); document.getElementById('newTicketName').value = ''; renderBackendLists(); initStaticDropdowns(); }
 }
-function deleteTicket(idx) { let old = ticketTypeList[idx]; ticketTypeList.splice(idx, 1); localStorage.setItem('volare_ticket_types_v12', JSON.stringify(ticketTypeList)); pushLog(`刪除票種項目: ${old}`); renderBackendLists(); initStaticDropdowns(); }
-
+function deleteTicket(idx) { let old = ticketTypeList[idx]; ticketTypeList.splice(idx, 1); localStorage.setItem('volare_ticket_types_v13', JSON.stringify(ticketTypeList)); pushLog(`刪除票種項目: ${old}`); renderBackendLists(); initStaticDropdowns(); }
 function submitNewGoods() {
-    let bc = document.getElementById('newGBarcode').value.trim();
-    let name = document.getElementById('newGName').value.trim();
-    let price = parseInt(document.getElementById('newGPrice').value);
-    let initStock = parseInt(document.getElementById('newGInit').value) || 0;
-    let safety = parseInt(document.getElementById('newGSafety').value) || 0;
+    let bc = document.getElementById('newGBarcode').value.trim(); let name = document.getElementById('newGName').value.trim(); let price = parseInt(document.getElementById('newGPrice').value);
+    let initStock = parseInt(document.getElementById('newGInit').value) || 0; let safety = parseInt(document.getElementById('newGSafety').value) || 0;
     if(bc && name && price) {
         goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety };
-        localStorage.setItem('volare_goods_db_v12', JSON.stringify(goodsDatabase));
-        pushLog(`更新周邊基本存檔商品: [${bc}] ${name}`);
-        document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = '';
-        document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
-        renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊資料已同步建立上架！");
-    } else { showMsg('【提醒】', "欄位未填寫完全！"); }
+        localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase));
+        pushLog(`更新周邊品項: [${bc}] ${name}`);
+        document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
+        renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊配置資料上架成功！");
+    } else { showMsg('【提醒】', "請填寫完整周邊欄位！"); }
 }
-function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; localStorage.setItem('volare_goods_db_v12', JSON.stringify(goodsDatabase)); pushLog(`刪除周邊基本檔: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
-
+function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase)); pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
 function changeSystemPasswords() {
-    let mPass = document.getElementById('newMasterPass').value.trim();
-    let uPass = document.getElementById('newUserPass').value.trim();
-    if(mPass) { authConfig.master = mPass; pushLog("變更了主要權限審查密碼"); }
-    if(uPass) { authConfig.user = uPass; pushLog("變更了一般使用者權限密碼"); }
+    let mPass = document.getElementById('newMasterPass').value.trim(); let uPass = document.getElementById('newUserPass').value.trim();
+    if(mPass) { authConfig.master = mPass; pushLog("變更主要密碼"); }
+    if(uPass) { authConfig.user = uPass; pushLog("變更一般密碼"); }
     localStorage.setItem('volare_auth_config', JSON.stringify(authConfig));
-    document.getElementById('newMasterPass').value = '';
-    document.getElementById('newUserPass').value = '';
-    showMsg('【提醒】', "安全防弊密碼權限更新成功！");
+    document.getElementById('newMasterPass').value = ''; document.getElementById('newUserPass').value = '';
+    showMsg('【提醒】', "安全密碼變更成功！");
 }
 
 // 審計修改說明對話框
@@ -994,37 +977,32 @@ function openEditModal(type, id, itemDate) {
             <div class="form-group"><label>項目名稱：</label><input type="text" value="${rec.program} - ${rec.type} (${itemDate})" disabled style="background:#eee;"></div>
             <div class="form-group"><label>修正後張數：</label><input type="number" id="modTicketQty" value="${rec.qty}"></div>
             <div class="form-group"><label>修正後單價 ($)：</label><input type="number" id="modTicketPrice" value="${rec.price}"></div>
-            <div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫此修正單填寫人"></div>
-            <div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請詳細記錄更動理由"></div>
+            <div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div>
+            <div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>
         `;
     } else {
         let rec = systemStorage[itemDate].goods.find(g => g.id === id);
         body.innerHTML = `
             <div class="form-group"><label>商品名稱：</label><input type="text" value="${rec.name} (${itemDate})" disabled style="background:#eee;"></div>
-            <div class="form-group"><label>修正後異動量：</label><input type="number" id="modGoodsQty" value="${rec.qty}"></div>
+            <div class="form-group"><label>修正後數量：</label><input type="number" id="modGoodsQty" value="${rec.qty}"></div>
             <div class="form-group"><label>修正後折扣：</label><input type="number" id="modGoodsDiscount" value="${rec.discount}" step="0.01"></div>
-            <div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫此修正單填寫人"></div>
-            <div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請說明成因"></div>
+            <div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div>
+            <div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>
         `;
     }
     document.getElementById('auditModal').style.display = 'block';
 }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; currentEditTarget = null; }
 function submitModalEdit() {
-    let t = currentEditTarget;
-    let user = document.getElementById('modUser').value.trim();
-    let reason = document.getElementById('modReason').value.trim();
-    if(!user || !reason) { showMsg('【提醒】', "填寫人與原因皆為必填！"); return; }
+    let t = currentEditTarget; let user = document.getElementById('modUser').value.trim(); let reason = document.getElementById('modReason').value.trim();
+    if(!user || !reason) { showMsg('【提醒】', "填寫人與理由為必填！"); return; }
     if (t.type === 'Ticket') {
         let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id);
-        rec.qty = parseInt(document.getElementById('modTicketQty').value);
-        rec.price = parseInt(document.getElementById('modTicketPrice').value);
-        rec.amount = rec.qty * rec.price;
-        rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
+        rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value);
+        rec.amount = rec.qty * rec.price; rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
     } else {
         let rec = systemStorage[t.date].goods.find(g => g.id === t.id);
-        rec.qty = parseInt(document.getElementById('modGoodsQty').value);
-        rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value);
+        rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value);
         rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
     }
     closeModal('auditModal'); saveAndRender();
@@ -1034,156 +1012,159 @@ function switchView(view) {
     currentView = view;
     document.querySelectorAll('.right-panel .tab').forEach(t => t.classList.remove('active'));
     document.getElementById('viewTab' + view).classList.add('active');
+    
     document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none';
     document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
     document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
     document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
+    
+    // 需求1：只有在切換到「月報表（總覽數據）」時，才亮出區間搜尋框
+    document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none';
+    
     loadDateData();
 }
 
 function getActiveDate() { return document.getElementById('currentDate').value; }
 function initDateKey(date) { if (!systemStorage[date]) systemStorage[date] = { tickets: [], goods: [] }; }
-function saveAndRender() { localStorage.setItem('volare_pos_data_v12', JSON.stringify(systemStorage)); loadDateData(); }
+function saveAndRender() { localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); loadDateData(); }
 
-// 核心演算渲染 (包含即時刷新與區間過濾)
+// 數據核心演算中心
 function loadDateData() {
     updateLiveTime();
     
-    let start = document.getElementById('queryStart').value;
-    let end = document.getElementById('queryEnd').value;
-    if(!start || !end) return;
-
-    let 截止區間GoodsSalesCount = {};
+    let date = getActiveDate(); // 當前左上角選擇的單日
+    
+    // 計算歷史至今所有的周邊售出（為了即時盤點）
+    let globalGoodsSalesCount = {};
     for(let d in systemStorage) {
-        if(d <= end && systemStorage[d].goods) {
+        if(systemStorage[d].goods) {
             systemStorage[d].goods.forEach(item => {
                 if(item.qty < 0) {
-                    if(!截止區間GoodsSalesCount[item.barcode]) 截止區間GoodsSalesCount[item.barcode] = 0;
-                    截止區間GoodsSalesCount[item.barcode] += Math.abs(item.qty);
+                    if(!globalGoodsSalesCount[item.barcode]) globalGoodsSalesCount[item.barcode] = 0;
+                    globalGoodsSalesCount[item.barcode] += Math.abs(item.qty);
                 }
             });
         }
     }
 
-    let tRangeSum = 0, tRangePeople = 0, gRangeSum = 0;
-    for(let d in systemStorage) {
-        if(d >= start && d <= end) {
-            systemStorage[d].tickets.forEach(x => {
-                tRangeSum += x.amount;
-                let isDouble = x.type.includes("雙片") || x.type.includes("雙人");
-                tRangePeople += isDouble ? (x.qty * 2) : x.qty;
-            });
-            systemStorage[d].goods.forEach(y => {
-                if(y.qty < 0) gRangeSum += Math.round(y.price * Math.abs(y.qty) * y.discount);
-            });
-        }
+    // 看板數據加總（固定連動目前左上角選擇的「單日」營業額）
+    let tSum = 0, tPeople = 0, gSum = 0;
+    if (systemStorage[date]) {
+        systemStorage[date].tickets.forEach(x => {
+            tSum += x.amount;
+            let isDouble = x.type.includes("雙片") || x.type.includes("雙人");
+            tPeople += isDouble ? (x.qty * 2) : x.qty;
+        });
+        systemStorage[date].goods.forEach(y => {
+            if(y.qty < 0) gSum += Math.round(y.price * Math.abs(y.qty) * y.discount);
+        });
     }
-    document.getElementById('dayTicketSum').innerText = `$ ${tRangeSum.toLocaleString()} (${tRangePeople} 人次)`;
-    document.getElementById('dayGoodsSum').innerText = `$ ${gRangeSum.toLocaleString()}`;
-    document.getElementById('dayTotalSum').innerText = `$ ${(tRangeSum + gRangeSum).toLocaleString()}`;
+    document.getElementById('dayTicketSum').innerText = `$ ${tSum.toLocaleString()} (${tPeople} 人次)`;
+    document.getElementById('dayGoodsSum').innerText = `$ ${gSum.toLocaleString()}`;
+    document.getElementById('dayTotalSum').innerText = `$ ${(tSum + gSum).toLocaleString()}`;
 
     if (currentView === 'Day') {
+        // 1. 📋 當日營運明細 (固定只呈現單日)
         let ticketBody = document.getElementById('ticketTableBody');
         let goodsBody = document.getElementById('goodsTableBody');
         ticketBody.innerHTML = ''; goodsBody.innerHTML = '';
         
-        let sortedDates = Object.keys(systemStorage).sort();
-        sortedDates.forEach(d => {
-            if(d >= start && d <= end) {
-                systemStorage[d].tickets.forEach(item => {
-                    let isDouble = item.type.includes("雙片") || item.type.includes("雙人");
-                    let peopleCount = isDouble ? (item.qty * 2) : item.qty;
-                    let isMod = item.audit ? 'class="modified-row"' : '';
-                    let auditLogHtml = item.audit ? `<tr><td colspan="9"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
-                    
-                    ticketBody.innerHTML += `
-                        <tr ${isMod}>
-                            <td><strong>${d}</strong></td><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount}人</td>
-                            <td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${d}')">✍️ 修改說明</button></td>
-                        </tr>${auditLogHtml}`;
-                });
+        if (systemStorage[date]) {
+            systemStorage[date].tickets.forEach(item => {
+                let isDouble = item.type.includes("雙片") || item.type.includes("雙人");
+                let peopleCount = isDouble ? (item.qty * 2) : item.qty;
+                let auditLogHtml = item.audit ? `<tr><td colspan="8"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
                 
-                systemStorage[d].goods.forEach(item => {
-                    let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0;
-                    let typeStr = item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>" : "<span style='color:green;'>🟢 進貨</span>";
-                    let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (授權:${item.discountAuthUser})` : '--';
-                    let isMod = item.audit ? 'class="modified-row"' : '';
-                    let auditLogHtml = item.audit ? `<tr><td colspan="10"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
-                    
-                    goodsBody.innerHTML += `
-                        <tr ${isMod}>
-                            <td><strong>${d}</strong></td><td>${item.barcode}</td><td>${item.name}</td><td>${typeStr}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#8a6d3b; font-size:11px;">${authText}</td>
-                            <td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${d}')">✍️ 修改說明</button></td>
-                        </tr>${auditLogHtml}`;
-                });
-            }
-        });
+                ticketBody.innerHTML += `
+                    <tr ${item.audit ? 'class="modified-row"':''}>
+                        <td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td>
+                        <td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改說明</button></td>
+                    </tr>${auditLogHtml}`;
+            });
+            
+            systemStorage[date].goods.forEach(item => {
+                let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0;
+                let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (填寫人:${item.discountAuthUser})` : '--';
+                let auditLogHtml = item.audit ? `<tr><td colspan="9"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
+                
+                goodsBody.innerHTML += `
+                    <tr ${item.audit ? 'class="modified-row"':''}>
+                        <td>${item.barcode}</td><td>${item.name}</td><td>${item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>":"<span style='color:green;'>🟢 進貨</span>"}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#8a6d3b; font-size:11px;">${authText}</td>
+                        <td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${date}')">✍️ 修改說明</button></td>
+                    </tr>${auditLogHtml}`;
+            });
+        }
         
     } else if (currentView === 'Session') {
+        // 2. 🎬 場次播映調度總表 (固定單日，保證座位邏輯剩餘席位與安全狀態完美)
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = '';
         let sessionData = {};
-        for(let d in systemStorage) {
-            if(d >= start && d <= end) {
-                systemStorage[d].tickets.forEach(rec => {
-                    if (rec.time !== "--") {
-                        if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 };
-                        if (!sessionData[rec.time].programs.includes(rec.program)) {
-                            sessionData[rec.time].programs.push(rec.program);
-                        }
-                        let isDouble = rec.type.includes("雙片") || rec.type.includes("雙人");
-                        sessionData[rec.time].people += isDouble ? (rec.qty * 2) : rec.qty;
-                    }
-                });
-            }
+        
+        if (systemStorage[date] && systemStorage[date].tickets) {
+            systemStorage[date].tickets.forEach(rec => {
+                if (rec.time !== "--") {
+                    if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 };
+                    if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program);
+                    let isDouble = rec.type.includes("雙片") || rec.type.includes("雙人");
+                    sessionData[rec.time].people += isDouble ? (rec.qty * 2) : rec.qty;
+                }
+            });
         }
         let sortedSessions = Object.keys(sessionData).sort();
-        if (sortedSessions.length === 0) {
-            sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">此查詢日期區間內尚無任何播映紀錄</td></tr>`;
-        }
-        sortedSessions.forEach(time => {
-            let sInfo = sessionData[time];
-            sBody.innerHTML += `<tr><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td>--</td><td>區間累計顯示</td></tr>`;
-        });
+        if (sortedSessions.length === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場紀錄</td></tr>`;
         
-    } else if (currentView === 'Month') {
-        let monthBody = document.getElementById('monthTableBody'); monthBody.innerHTML = '';
-        let allDates = Object.keys(systemStorage).sort();
-        allDates.forEach(d => {
-            if(d >= start && d <= end) {
-                let dT = 0, dP = 0, dG = 0;
-                systemStorage[d].tickets.forEach(x => { dT += x.amount; let isDouble = x.type.includes("雙片") || x.type.includes("雙人"); dP += isDouble ? x.qty*2 : x.qty; });
-                systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); });
-                monthBody.innerHTML += `<tr><td><strong>${d}</strong></td><td>$ ${dT.toLocaleString()}</td><td>${dP} 人次</td><td>$ ${dG.toLocaleString()}</td><td><strong>$ ${(dT + dG).toLocaleString()}</strong></td></tr>`;
-            }
+        sortedSessions.forEach(time => {
+            let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8;
+            sBody.innerHTML += `
+                <tr>
+                    <td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td>
+                </tr>`;
         });
         
     } else if (currentView === 'Stock') {
+        // 3. 📦 周邊進銷存盤點中心 (固定最新在店盤點現況)
         let stockBody = document.getElementById('stockTableBody'); stockBody.innerHTML = '';
         for(let barcode in goodsDatabase) {
-            let item = goodsDatabase[barcode]; let soldQty = 截止區間GoodsSalesCount[barcode] || 0; let currentStock = item.initStock - soldQty;
+            let item = goodsDatabase[barcode]; let soldQty = globalGoodsSalesCount[barcode] || 0; let currentStock = item.initStock - soldQty;
             let isAlert = currentStock < item.safetyStock;
             stockBody.innerHTML += `
                 <tr>
-                    <td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存不足【請補貨】':'✅ 庫存安全'}</td>
+                    <td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存過低【補貨警示】':'✅ 庫存安全'}</td>
                 </tr>`;
         }
+        
+    } else if (currentView === 'Month') {
+        // 4. 📊 全月營收看板 (需求1&3：唯獨月報表支援『確定查詢』按鈕後的區間段大合流數據總覽)
+        let monthBody = document.getElementById('monthTableBody'); monthBody.innerHTML = '';
+        let allDates = Object.keys(systemStorage).sort();
+        let filteredDates = allDates.filter(d => d >= rangeQueryStart && d <= rangeQueryEnd);
+        
+        if(filteredDates.length === 0) {
+            monthBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">此選取查詢區間內目前尚無營業數據</td></tr>`;
+        }
+        
+        filteredDates.forEach(d => {
+            let dT = 0, dP = 0, dG = 0;
+            systemStorage[d].tickets.forEach(x => { dT += x.amount; let isDouble = x.type.includes("雙片") || x.type.includes("雙人"); dP += isDouble ? x.qty*2 : x.qty; });
+            systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); });
+            monthBody.innerHTML += `<tr><td><strong>${d}</strong></td><td>$ ${dT.toLocaleString()}</td><td>${dP} 人次</td><td>$ ${dG.toLocaleString()}</td><td><strong>$ ${(dT + dG).toLocaleString()}</strong></td></tr>`;
+        });
     }
 }
 
+// 打包匯出 Excel (CSV)
 function exportRangeData() {
-    let start = document.getElementById('queryStart').value;
-    let end = document.getElementById('queryEnd').value;
+    let start = document.getElementById('expStart').value;
+    let end = document.getElementById('expEnd').value;
     if(!start || !end || start > end) { showMsg('【提醒】', "請選取正確的日期導出區間！"); return; }
     
     let csvContent = "\uFEFF"; 
-    csvContent += `VOLARE 營運智慧整合區間報表,查詢區間:,${start} 至 ${end}\n\n`;
-    csvContent += "=== 🎫 票券銷售累計明細 ===\n營業日期,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,內部審計簽核\n";
+    csvContent += `VOLARE 營運總覽財務整合報表,區間:,${start} 至 ${end}\n\n`;
+    csvContent += "=== 🎫 票券明計累計總覽清單 ===\n營業日期,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,內部審計簽核\n";
     
     let allDates = Object.keys(systemStorage).sort();
-    let hasData = false;
     allDates.forEach(d => {
         if(d >= start && d <= end) {
-            hasData = true;
             systemStorage[d].tickets.forEach(x => {
                 let isDouble = x.type.includes("雙片") || x.type.includes("雙人");
                 csvContent += `${d},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${isDouble ? x.qty*2 : x.qty},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`;
@@ -1191,7 +1172,7 @@ function exportRangeData() {
         }
     });
     
-    csvContent += "\n=== 📊 營運日報累計總表 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
+    csvContent += "\n=== 📊 每日營業加總日報 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
     allDates.forEach(d => {
         if(d >= start && d <= end) {
             let dT = 0, dP = 0, dG = 0;
@@ -1201,7 +1182,7 @@ function exportRangeData() {
         }
     });
     
-    csvContent += "\n=== 📦 周邊商品截止此區間進銷存盤點表 ===\n國際條碼,商品品名,商品單價,初始庫存,截止累計銷售量,當前剩餘庫存,安全庫存水位,安全預警狀態\n";
+    csvContent += "\n=== 📦 周邊商品截止此區間盤點表 ===\n國際條碼,商品品名,商品單價,初始庫存,截止累計銷售量,當前剩餘庫存,安全庫存水位,安全預警狀態\n";
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end) {
@@ -1214,11 +1195,10 @@ function exportRangeData() {
         let item = goodsDatabase[barcode]; let soldQty = rangeGoodsSales[barcode] || 0; let remain = item.initStock - soldQty;
         csvContent += `${barcode},${item.name},${item.price},${item.initStock},${soldQty},${remain},${item.safetyStock},${remain < item.safetyStock ? "庫存不足" : "庫存安全"}\n`;
     }
-    if(!hasData) { showMsg('【提醒】', "所選區間內目前無任何營運數據！"); return; }
     
     let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     let link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `VOLARE_智慧區間財務整合報表_${start}_至_${end}.csv`);
+    link.setAttribute("download", `VOLARE_綜合總覽營運報表_${start}_至_${end}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 </script>
