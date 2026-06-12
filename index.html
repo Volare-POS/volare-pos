@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧營運日誌與進銷存系統 v8</title>
+    <title>VOLARE 智慧營運日誌與進銷存系統 v9</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -41,7 +41,7 @@
             gap: 20px;
             align-items: start;
         }
-        /* 主控台永遠保持在畫面上 */
+        /* 主控台永遠保持在畫面上 Sticky PIN */
         .left-panel {
             position: -webkit-sticky;
             position: sticky;
@@ -199,7 +199,6 @@
             50% { background-color: #ffb3b3; }
             100% { background-color: #ffe3e3; }
         }
-        /* 醒目顏色文字特別設置（紅粗體） */
         .highlight-alert-text {
             color: #e74c3c;
             font-weight: 900;
@@ -329,7 +328,7 @@
 
 <div class="container">
     <header>
-        <h1>VOLARE 智慧營運日誌與進銷存核心系統 v8</h1>
+        <h1>VOLARE 智慧營運日誌與進銷存核心系統 v9</h1>
         <div style="display: flex; gap: 15px; align-items: center;">
             <button onclick="openBackendModal()" style="background:#7f8c8d; width:auto; padding:5px 15px; font-size:13px;">⚙️ 進入管理員後台</button>
             <label style="color:white; margin:0; padding-left:15px;">營運日期：</label>
@@ -441,7 +440,7 @@
                             <input type="text" id="goodsDiscountAuthUser" placeholder="例：營運主管">
                         </div>
                     </div>
-                    <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">周邊登記</button>
+                    <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent" style="display:block !important; visibility:visible !important;">周邊登記</button>
                 </div>
             </div>
         </div>
@@ -562,16 +561,16 @@
 <script>
 const BACKEND_PASSWORD = "8888";
 
-let programList = JSON.parse(localStorage.getItem('volare_programs_v8')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
-let ticketTypeList = JSON.parse(localStorage.getItem('volare_ticket_types_v8')) || ["一般單片票", "一般雙片票", "動漫單人票", "動漫雙人票", "極速賽車", "VIP特惠票", "團體優待票", "公關招待券", "愛心/敬老票"];
+let programList = JSON.parse(localStorage.getItem('volare_programs_v9')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
+let ticketTypeList = JSON.parse(localStorage.getItem('volare_ticket_types_v9')) || ["一般單片票", "一般雙片票", "動漫單人票", "動漫雙人票", "極速賽車", "VIP特惠票", "團體優待票", "公關招待券", "愛心/敬老票"];
 
 let defaultGoodsDb = {
     "4710000001": { name: "環保購物袋_手繪風台灣", price: 150, initStock: 100, safetyStock: 20 },
     "4710000002": { name: "巨人三層L型資料夾", price: 100, initStock: 150, safetyStock: 30 },
     "4710000003": { name: "巨人陶瓷馬克杯-艾連", price: 580, initStock: 50, safetyStock: 10 }
 };
-let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v8')) || defaultGoodsDb;
-let systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v8')) || {};
+let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v9')) || defaultGoodsDb;
+let systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v9')) || {};
 
 let currentView = 'Day';
 let currentBackendTab = 'Prog';
@@ -581,14 +580,13 @@ let confirmCallback = null;
 document.getElementById('currentDate').valueAsDate = new Date();
 document.getElementById('expStart').valueAsDate = new Date();
 document.getElementById('expEnd').valueAsDate = new Date();
+
+// 初始化加載選單
 initStaticDropdowns();
 
-// 自訂非網址標題對話框
 function showMsg(title, htmlText, isConfirm = false, callback = null) {
     document.getElementById('globalMsgTitle').innerText = title;
     document.getElementById('globalMsgTitle').style.color = title.includes("警告") ? "var(--accent-color)" : "var(--warning-color)";
-    
-    // 支援包含 HTML 結構（如醒目顏色）的內文化渲染
     document.getElementById('globalMsgBody').innerHTML = htmlText;
     let footer = document.getElementById('globalMsgFooter');
     footer.innerHTML = '';
@@ -643,7 +641,7 @@ function toggleDiscountAuthZone() {
     document.getElementById('discountAuthZone').style.display = (disc !== "1.0") ? "block" : "none";
 }
 
-// 票務登記控制（需求1：超載警告客製文字與顏色連動）
+// 票務確定按鈕
 function addTicketSale() {
     let date = getActiveDate();
     let program = document.getElementById('ticketProgram').value;
@@ -703,7 +701,6 @@ function addTicketSale() {
     executeTicketCommit(date, program, time, type, qty, price);
 }
 
-// 需求1修正：動態時間注入 + (括號內醒目紅粗體累計人次) 警告視窗
 function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal) {
     let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，請確認是否繼續？`;
     showMsg('【警告】', warningHtml, true, function(approved) {
@@ -719,7 +716,7 @@ function executeTicketCommit(date, program, time, type, qty, price) {
     saveAndRender();
 }
 
-// 需求2徹底修復：完全跳出條碼槍閉包，獨立外部精準路徑作用域
+// 🛍️ 周邊登記手動按鈕（徹底解鎖，從條碼槍回車閉包中解救出來！）
 function addGoodsSale() {
     let date = getActiveDate();
     let barcode = document.getElementById('goodsType').value;
@@ -741,6 +738,7 @@ function addGoodsSale() {
         id: 'G_' + Date.now(), barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: discount, discountReason: reason, discountAuthUser: authUser, audit: null
     });
     
+    // 扣帳成功後重置表單
     document.getElementById('goodsDiscountReason').value = "";
     document.getElementById('goodsDiscountAuthUser').value = "";
     document.getElementById('goodsDiscount').value = "1.0";
@@ -764,7 +762,7 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     }
 }
 
-// 條碼槍快刷監聽（與按鈕動作完全解耦隔離）
+// 條碼槍快刷事件 (完全不干涉手動登記 function)
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
@@ -783,7 +781,7 @@ document.getElementById('barcodeScanner').addEventListener('keypress', function(
     }
 });
 
-// 後台
+// 後台權限控制
 function openBackendModal() {
     document.getElementById('backendModal').style.display = 'block';
     document.getElementById('backendAuthZone').style.display = 'block';
@@ -820,14 +818,14 @@ function renderBackendLists() {
 }
 function submitNewProgram() {
     let val = document.getElementById('newProgName').value.trim();
-    if(val) { programList.push(val); localStorage.setItem('volare_programs_v8', JSON.stringify(programList)); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); }
+    if(val) { programList.push(val); localStorage.setItem('volare_programs_v9', JSON.stringify(programList)); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); }
 }
-function deleteProg(idx) { programList.splice(idx, 1); localStorage.setItem('volare_programs_v8', JSON.stringify(programList)); renderBackendLists(); initStaticDropdowns(); }
+function deleteProg(idx) { programList.splice(idx, 1); localStorage.setItem('volare_programs_v9', JSON.stringify(programList)); renderBackendLists(); initStaticDropdowns(); }
 function submitNewTicket() {
     let val = document.getElementById('newTicketName').value.trim();
-    if(val) { ticketTypeList.push(val); localStorage.setItem('volare_ticket_types_v8', JSON.stringify(ticketTypeList)); document.getElementById('newTicketName').value = ''; renderBackendLists(); initStaticDropdowns(); }
+    if(val) { ticketTypeList.push(val); localStorage.setItem('volare_ticket_types_v9', JSON.stringify(ticketTypeList)); document.getElementById('newTicketName').value = ''; renderBackendLists(); initStaticDropdowns(); }
 }
-function deleteTicket(idx) { ticketTypeList.splice(idx, 1); localStorage.setItem('volare_ticket_types_v8', JSON.stringify(ticketTypeList)); renderBackendLists(); initStaticDropdowns(); }
+function deleteTicket(idx) { ticketTypeList.splice(idx, 1); localStorage.setItem('volare_ticket_types_v9', JSON.stringify(ticketTypeList)); renderBackendLists(); initStaticDropdowns(); }
 function submitNewGoods() {
     let bc = document.getElementById('newGBarcode').value.trim();
     let name = document.getElementById('newGName').value.trim();
@@ -836,15 +834,15 @@ function submitNewGoods() {
     let safety = parseInt(document.getElementById('newGSafety').value) || 0;
     if(bc && name && price) {
         goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety };
-        localStorage.setItem('volare_goods_db_v8', JSON.stringify(goodsDatabase));
+        localStorage.setItem('volare_goods_db_v9', JSON.stringify(goodsDatabase));
         document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = '';
         document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
         renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊配置資料已同步上架進銷存盤點表！");
     } else { showMsg('【提醒】', "欄位填寫不全！"); }
 }
-function deleteGoods(barcode) { delete goodsDatabase[barcode]; localStorage.setItem('volare_goods_db_v8', JSON.stringify(goodsDatabase)); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+function deleteGoods(barcode) { delete goodsDatabase[barcode]; localStorage.setItem('volare_goods_db_v9', JSON.stringify(goodsDatabase)); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
 
-// 修改
+// 審計修改說明
 function openEditModal(type, id) {
     let date = getActiveDate();
     currentEditTarget = { type: type, id: id, date: date };
@@ -856,7 +854,7 @@ function openEditModal(type, id) {
             <div class="form-group"><label>修正後數量：</label><input type="number" id="modTicketQty" value="${rec.qty}"></div>
             <div class="form-group"><label>修正後單價 ($)：</label><input type="number" id="modTicketPrice" value="${rec.price}"></div>
             <div class="form-group"><label>授權主管人 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div>
-            <div class="form-group"><label>變更理由備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>
+            <div class="form-group"><label>變更理由備註 (必填)：</label><input type="text" id="modReason" placeholder="請說明成因"></div>
         `;
     } else {
         let rec = systemStorage[date].goods.find(g => g.id === id);
@@ -865,7 +863,7 @@ function openEditModal(type, id) {
             <div class="form-group"><label>修正後異動量：</label><input type="number" id="modGoodsQty" value="${rec.qty}"></div>
             <div class="form-group"><label>修正後折扣：</label><input type="number" id="modGoodsDiscount" value="${rec.discount}" step="0.01"></div>
             <div class="form-group"><label>授權主管人 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div>
-            <div class="form-group"><label>變更理由備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>
+            <div class="form-group"><label>變更理由備註 (必填)：</label><input type="text" id="modReason" placeholder="請說明成因"></div>
         `;
     }
     document.getElementById('auditModal').style.display = 'block';
@@ -904,7 +902,7 @@ function switchView(view) {
 
 function getActiveDate() { return document.getElementById('currentDate').value; }
 function initDateKey(date) { if (!systemStorage[date]) systemStorage[date] = { tickets: [], goods: [] }; }
-function saveAndRender() { localStorage.setItem('volare_pos_data_v8', JSON.stringify(systemStorage)); loadDateData(); }
+function saveAndRender() { localStorage.setItem('volare_pos_data_v9', JSON.stringify(systemStorage)); loadDateData(); }
 
 function loadDateData() {
     let date = getActiveDate();
@@ -1070,8 +1068,6 @@ function exportRangeData() {
     link.setAttribute("download", `VOLARE_綜合營運區間報表_${start}_至_${end}.csv`);
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
-
-loadDateData();
 </script>
 </body>
 </html>
