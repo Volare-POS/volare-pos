@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v17</title>
+    <title>VOLARE 智慧雲端安全營運系統 v17.5</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -287,7 +287,6 @@
             border: 1px solid #4a5568;
             margin-top: 10px;
         }
-        /* 🟢 狀態指示燈燈號樣式 */
         .status-dot {
             display: inline-block;
             width: 10px;
@@ -547,7 +546,6 @@
 </div>
 
 <script>
-// 雲端鏈結資料庫端點 (KVDB.io 專用通道)
 const CLOUD_DB_URL = "https://kvdb.io/BJN4pUaM6KqKx83Vby9N9R/volare_pos_cloud_db_v16";
 
 let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
@@ -585,11 +583,9 @@ systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 initStaticDropdowns();
 pullFromCloud();
 
-// 💡 登入支援 Enter 鍵快捷送出
 document.getElementById('gatePass').addEventListener('keypress', function(e) { if(e.key === 'Enter') attemptSystemLogin(); });
 document.getElementById('gateUser').addEventListener('keypress', function(e) { if(e.key === 'Enter') attemptSystemLogin(); });
 
-// 🛡️ 登入驗證大門邏輯 (就地顯示錯誤欄優化)
 function attemptSystemLogin() {
     let u = document.getElementById('gateUser').value.trim();
     let p = document.getElementById('gatePass').value;
@@ -606,19 +602,16 @@ function attemptSystemLogin() {
     }
 }
 
-// 🐛 Bug #1 修正：補回缺失的 getActiveDate() 函數
 function getActiveDate() {
     return document.getElementById('currentDate').value;
 }
 
-// 🐛 Bug #2 修正：補回缺失的 initDateKey() 函數
 function initDateKey(date) {
     if (!systemStorage[date]) {
         systemStorage[date] = { tickets: [], goods: [] };
     }
 }
 
-// 🐛 Bug #3 修正：補回缺失的 saveAndRender()，同步備份至雲端與本地
 function saveAndRender() {
     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
     pushToCloud();
@@ -641,7 +634,6 @@ function pullFromCloud() {
         });
 }
 
-// 🐛 Bug #4 修正：將 POST 修正為符合 kvdb.io 規範的 PUT 方法
 function pushToCloud() {
     setSyncIndicator('syncing');
     loadDateData();
@@ -659,7 +651,6 @@ function pushToCloud() {
     });
 }
 
-// ✨ 雲端狀態動態指示燈控制
 function setSyncIndicator(status) {
     let dot = document.getElementById('syncIndicator');
     let text = document.getElementById('syncText');
@@ -679,6 +670,7 @@ function setSyncIndicator(status) {
 }
 
 function onMasterDateChange() { loadDateData(); }
+// 區間查詢強制按下確認鍵連動
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
@@ -690,7 +682,6 @@ function switchForm(form) {
     document.getElementById('tabTicket').classList.toggle('active', form === 'Ticket');
     document.getElementById('tabGoods').classList.toggle('active', form === 'Goods');
 }
-function updateLiveTime() {}
 
 function initStaticDropdowns() {
     const hourSelect = document.getElementById('timeHour'); hourSelect.innerHTML = '';
@@ -711,7 +702,6 @@ function syncGoodsPrice() {
     let barcode = document.getElementById('goodsType').value;
     if(goodsDatabase[barcode]) document.getElementById('goodsPriceShow').value = goodsDatabase[barcode].price;
 }
-UX防擠壓隔離 = () => {};
 function toggleDiscountAuthZone() {
     let disc = document.getElementById('goodsDiscount').value;
     document.getElementById('discountAuthZone').style.display = (parseFloat(parseFloat(disc).toFixed(2)) !== 1.0) ? "block" : "none";
@@ -732,11 +722,15 @@ function calculateTicketPeople(type, qty) {
     return qty;
 }
 
+// 🎯 需求1&2核心修正：修復並完全接回「同場次撞片警告攔截」與「座位超過8位鮮紅警告」功能
 function addTicketSale() {
-    let date = getActiveDate(); let program = document.getElementById('ticketProgram').value;
+    let date = getActiveDate(); 
+    let program = document.getElementById('ticketProgram').value;
     let time = document.getElementById('timeHour').value + ':' + document.getElementById('timeMin').value;
-    let type = document.getElementById('ticketType').value; let qty = parseInt(document.getElementById('ticketQty').value);
+    let type = document.getElementById('ticketType').value; 
+    let qty = parseInt(document.getElementById('ticketQty').value);
     let price = parseInt(document.getElementById('ticketPrice').value);
+    
     if (!date) { showMsg('【提醒】', '請先選取營運日期！'); return; }
     if (!qty || qty < 1) { showMsg('【提醒】', '請輸入正確的張數！'); return; }
     if (type.includes("極速賽車")) { program = "隨到隨開場：極速賽車項目"; time = "--"; }
@@ -744,37 +738,60 @@ function addTicketSale() {
     if (time !== "--") {
         let incomingPeople = calculateTicketPeople(type, qty);
         let existingFilmsInSession = [];
+        
+        // 抓取雲端目前指定日期的票務清單
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
-                if (rec.time === time && rec.program !== "--" && !existingFilmsInSession.includes(rec.program)) existingFilmsInSession.push(rec.program);
+                if (rec.time === time && rec.program !== "--" && !existingFilmsInSession.includes(rec.program)) {
+                    existingFilmsInSession.push(rec.program);
+                }
             });
         }
+        
         let currentSessionPeopleTotal = 0;
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
-                if (rec.time === time) { currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); }
+                if (rec.time === time) { 
+                    currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); 
+                }
             });
         }
+
+        // 防線一：場次撞片警告 (例如 13:00 已經開了 A 片，突然點選排 B 片)
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
-            showMsg('【提醒】', `${time} 已被安排了《${existingFilmsInSession[0]}》，\n是否確定要繼續建立《${program}》的影片資料？`, true, function(approved) {
+            let collisionHtml = `${time} 場次已開演《${existingFilmsInSession[0]}》，<br>是否確定要在同場次混開播映《${program}》？`;
+            showMsg('【撞片警告】', collisionHtml, true, function(approved) {
                 if (approved) {
-                    if ((currentSessionPeopleTotal + incomingPeople) > 8) triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople));
-                    else executeTicketCommit(date, program, time, type, qty, price);
+                    // 通過撞片確認後，接續檢查是否超載
+                    if ((currentSessionPeopleTotal + incomingPeople) > 8) {
+                        triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople));
+                    } else {
+                        executeTicketCommit(date, program, time, type, qty, price);
+                    }
                 }
             });
             return;
         }
-        if ((currentSessionPeopleTotal + incomingPeople) > 8) { triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); return; }
+
+        // 防線二：人數超過 8 位硬體超載警告
+        if ((currentSessionPeopleTotal + incomingPeople) > 8) { 
+            triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); 
+            return; 
+        }
     }
     executeTicketCommit(date, program, time, type, qty, price);
 }
 
 function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal) {
-    let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，請確認是否繼續？`;
-    showMsg('【警告】', warningHtml, true, function(approved) { if (approved) executeTicketCommit(date, program, time, type, qty, price); });
+    let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，已超過設備上限！<br><br>請確認是否強制繼續？`;
+    showMsg('【超載警告】', warningHtml, true, function(approved) { 
+        if (approved) executeTicketCommit(date, program, time, type, qty, price); 
+    });
 }
+
 function executeTicketCommit(date, program, time, type, qty, price) {
-    initDateKey(date); systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
+    initDateKey(date); 
+    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
     saveAndRender();
 }
 
@@ -805,7 +822,6 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
 
-// 🐛 Bug #6 修正：補回完全缺失的條碼槍 barcodeScanner 鍵盤監聽事件器
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
@@ -830,12 +846,12 @@ function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
     if(currentActiveRole === 'master') { document.getElementById('passwordEditZone').style.display = 'block'; document.getElementById('passwordDeniedZone').style.display = 'none'; }
     else { document.getElementById('passwordEditZone').style.display = 'none'; document.getElementById('passwordDeniedZone').style.display = 'block'; }
-    
-    // ✨ 額外優化：後台頂端呈現目前登入者身分
     document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentActiveRole === 'master' ? '系統最高權限' : '一般使用者'})`;
-    
     renderBackendLists(); renderLogBox(); renderStaffList();
 }
+document.addEventListener('DOMContentLoaded', () => {
+    // 預初始化
+});
 function switchBackendTab(tab) {
     currentBackendTab = tab; document.querySelectorAll('#backendControlZone .tab').forEach(t => t.classList.remove('active')); document.getElementById('bTab' + tab).classList.add('active');
     document.getElementById('bZoneProg').style.display = tab === 'Prog' ? 'block' : 'none'; document.getElementById('bZoneTicket').style.display = tab === 'Ticket' ? 'block' : 'none';
@@ -851,10 +867,8 @@ function submitNewStaffAccount() {
     } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
 }
 
-// 🐛 Bug #7 修正：註銷帳號全面棄用原生 confirm()，統一改為自訂安全 showMsg 簽核對話框
 function deleteStaffAccount(acc) {
     if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號為系統核心安全鎖，不允許刪除！");
-    
     showMsg('【安全註銷確認】', `確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`, true, function(approved) {
         if(approved) {
             delete staffDatabase[acc];
@@ -922,29 +936,21 @@ function submitModalEdit() {
         let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value);
         rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
     }
-    closeModal('auditModal'); saveAndRender();
+    closeModal('auditModal'); pushToCloud();
 }
 
-// 🐛 Bug #5 修正：合併重複定義的 switchView() 函數，改以乾淨的迴圈控管多個區塊的開關
 function switchView(view) {
     currentView = view;
-    
-    // 統一用陣列迴圈進行分頁標籤活化處理
     const views = ['Day', 'Session', 'Stock', 'Month'];
     views.forEach(v => {
         const tabEl = document.getElementById('viewTab' + v);
-        const zoneEl = document.getElementById('viewDayZone' ? document.getElementById('view' + v + 'Zone') : null);
-        
         if (tabEl) tabEl.classList.toggle('active', v === view);
     });
 
-    // 動態切換對應顯示區塊
     document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none';
     document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
     document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
     document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
-    
-    // 控制區間搜尋欄位
     document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
     
     pullFromCloud();
@@ -1049,7 +1055,7 @@ function exportRangeData() {
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end) {
-            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[acc] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
+            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
         }
     });
     for(let barcode in goodsDatabase) {
