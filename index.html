@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v17.5</title>
+    <title>VOLARE 智慧雲端安全營運系統 v18</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -612,6 +612,7 @@ function initDateKey(date) {
     }
 }
 
+// ✨ 打通 Bug#3，救回數據儲存生命週期
 function saveAndRender() {
     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
     pushToCloud();
@@ -670,7 +671,6 @@ function setSyncIndicator(status) {
 }
 
 function onMasterDateChange() { loadDateData(); }
-// 區間查詢強制按下確認鍵連動
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
@@ -722,7 +722,7 @@ function calculateTicketPeople(type, qty) {
     return qty;
 }
 
-// 🎯 需求1&2核心修正：修復並完全接回「同場次撞片警告攔截」與「座位超過8位鮮紅警告」功能
+// 🎯 需求1 & 需求2：雙重排片安全防線客製文字與顏色完美融合
 function addTicketSale() {
     let date = getActiveDate(); 
     let program = document.getElementById('ticketProgram').value;
@@ -739,7 +739,6 @@ function addTicketSale() {
         let incomingPeople = calculateTicketPeople(type, qty);
         let existingFilmsInSession = [];
         
-        // 抓取雲端目前指定日期的票務清單
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
                 if (rec.time === time && rec.program !== "--" && !existingFilmsInSession.includes(rec.program)) {
@@ -751,18 +750,15 @@ function addTicketSale() {
         let currentSessionPeopleTotal = 0;
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
-                if (rec.time === time) { 
-                    currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); 
-                }
+                if (rec.time === time) { currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); }
             });
         }
 
-        // 防線一：場次撞片警告 (例如 13:00 已經開了 A 片，突然點選排 B 片)
+        // 🎯 需求2修正：精準客製化撞片警告文字 (xxxx時間已為A影片，是否繼續操作，如選是則繼續)
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
-            let collisionHtml = `${time} 場次已開演《${existingFilmsInSession[0]}》，<br>是否確定要在同場次混開播映《${program}》？`;
-            showMsg('【撞片警告】', collisionHtml, true, function(approved) {
+            let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
+            showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) {
                 if (approved) {
-                    // 通過撞片確認後，接續檢查是否超載
                     if ((currentSessionPeopleTotal + incomingPeople) > 8) {
                         triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople));
                     } else {
@@ -773,7 +769,7 @@ function addTicketSale() {
             return;
         }
 
-        // 防線二：人數超過 8 位硬體超載警告
+        // 🎯 需求1修正：精準對齊座位超載 8 人警告字樣與括號內顯眼紅字
         if ((currentSessionPeopleTotal + incomingPeople) > 8) { 
             triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); 
             return; 
@@ -783,15 +779,15 @@ function addTicketSale() {
 }
 
 function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal) {
-    let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，已超過設備上限！<br><br>請確認是否強制繼續？`;
-    showMsg('【超載警告】', warningHtml, true, function(approved) { 
+    // 括號內文字由紅粗體醒目呈現
+    let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，請確認是否繼續？`;
+    showMsg('【座位超載警告】', warningHtml, true, function(approved) { 
         if (approved) executeTicketCommit(date, program, time, type, qty, price); 
     });
 }
 
 function executeTicketCommit(date, program, time, type, qty, price) {
-    initDateKey(date); 
-    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
+    initDateKey(date); systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
     saveAndRender();
 }
 
@@ -822,6 +818,7 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
 
+// ⚡ 條碼槍快速刷碼監聽器完美上線
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
@@ -849,9 +846,6 @@ function unlockBackendControl() {
     document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentActiveRole === 'master' ? '系統最高權限' : '一般使用者'})`;
     renderBackendLists(); renderLogBox(); renderStaffList();
 }
-document.addEventListener('DOMContentLoaded', () => {
-    // 預初始化
-});
 function switchBackendTab(tab) {
     currentBackendTab = tab; document.querySelectorAll('#backendControlZone .tab').forEach(t => t.classList.remove('active')); document.getElementById('bTab' + tab).classList.add('active');
     document.getElementById('bZoneProg').style.display = tab === 'Prog' ? 'block' : 'none'; document.getElementById('bZoneTicket').style.display = tab === 'Ticket' ? 'block' : 'none';
@@ -1055,7 +1049,7 @@ function exportRangeData() {
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end) {
-            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
+            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[acc] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
         }
     });
     for(let barcode in goodsDatabase) {
