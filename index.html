@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v16</title>
+    <title>VOLARE 智慧雲端安全營運系統 v17</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -24,7 +24,6 @@
             max-width: 1750px;
             margin: 0 auto;
         }
-        /* 🛡️ 全網網頁安全防護登入大門樣式 */
         #loginGatekeeperOverlay {
             position: fixed;
             z-index: 9999;
@@ -138,12 +137,6 @@
             padding: 12px;
             border-radius: 6px;
             text-align: center;
-        }
-        .barcode-input {
-            font-size: 18px;
-            text-align: center;
-            font-family: monospace;
-            letter-spacing: 2px;
         }
         .table-responsive {
             width: 100%;
@@ -294,8 +287,18 @@
             border: 1px solid #4a5568;
             margin-top: 10px;
         }
+        /* 🟢 狀態指示燈燈號樣式 */
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-syncing { background-color: var(--warning-color); animation: pulse 1s infinite; }
+        .status-success { background-color: var(--success-color); }
+        .status-fail { background-color: var(--accent-color); }
 
-        /* 手機版自適應 RWD 斷點 */
         @media screen and (max-width: 850px) {
             body { padding: 10px; }
             header { flex-direction: column; align-items: stretch; padding: 15px; }
@@ -322,10 +325,11 @@
             <label>員工認證帳號：</label>
             <input type="text" id="gateUser" placeholder="請輸入公司電子郵件或同仁帳號">
         </div>
-        <div class="form-group" style="margin-bottom: 20px;">
+        <div class="form-group" style="margin-bottom: 12px;">
             <label>通行認證密碼：</label>
             <input type="password" id="gatePass" placeholder="請輸入認證通行密碼">
         </div>
+        <div id="loginErrorMsg" style="color:var(--accent-color); font-size:13px; font-weight:bold; margin-bottom:15px; text-align:center; display:none;"></div>
         <button onclick="attemptSystemLogin()" style="background:var(--primary-color); padding:12px; font-size:15px;">登入解鎖系統</button>
     </div>
 </div>
@@ -360,6 +364,8 @@
         </div>
 
         <div id="backendControlZone" style="display:none;">
+            <div id="currentUserBar" style="background:#edf2f7; padding:8px 12px; border-radius:4px; font-size:13px; font-weight:bold; color:var(--primary-color); margin-bottom:12px;"></div>
+            
             <div class="tabs">
                 <div class="tab active" id="bTabProg" onclick="switchBackendTab('Prog')">影片節目維護</div>
                 <div class="tab" id="bTabTicket" onclick="switchBackendTab('Ticket')">營業票種維護</div>
@@ -427,7 +433,10 @@
     <header>
         <div style="display: flex; flex-direction: column; gap: 4px;">
             <h1 style="margin:0; font-size: 22px;">VOLARE 智慧雲端營運日誌核心系統</h1>
-            <span id="liveUpdateTime" style="color:#cbd5e0; font-size:11px;">🟢 雲端聯動狀態：已同步至微型雲端儲存庫</span>
+            <span id="liveUpdateTime" style="color:#cbd5e0; font-size:11px; display:flex; align-items:center;">
+                <span id="syncIndicator" class="status-dot status-syncing"></span>
+                <span id="syncText">雲端安全同步中...</span>
+            </span>
         </div>
         <div style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 6px;">
             <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">📅 營運日期：</label>
@@ -538,17 +547,14 @@
 </div>
 
 <script>
-// 雲端鏈結資料庫端點 (已徹底物理排查語法錯誤)
+// 雲端鏈結資料庫端點 (KVDB.io 專用通道)
 const CLOUD_DB_URL = "https://kvdb.io/BJN4pUaM6KqKx83Vby9N9R/volare_pos_cloud_db_v16";
 
 let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
 
-// 👥 需求2：一線員工登入帳密清單庫 (預載最高管理者)
-let defaultStaffDb = {
-    "amy_chung@brogentglobal.com": "5372858"
-};
+let defaultStaffDb = { "amy_chung@brogentglobal.com": "5372858" };
 let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || defaultStaffDb;
 
 let defaultTicketDb = {
@@ -579,43 +585,97 @@ systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 initStaticDropdowns();
 pullFromCloud();
 
-// 🛡️ 需求2：登入驗證大門控制邏輯
+// 💡 登入支援 Enter 鍵快捷送出
+document.getElementById('gatePass').addEventListener('keypress', function(e) { if(e.key === 'Enter') attemptSystemLogin(); });
+document.getElementById('gateUser').addEventListener('keypress', function(e) { if(e.key === 'Enter') attemptSystemLogin(); });
+
+// 🛡️ 登入驗證大門邏輯 (就地顯示錯誤欄優化)
 function attemptSystemLogin() {
     let u = document.getElementById('gateUser').value.trim();
     let p = document.getElementById('gatePass').value;
+    let errDiv = document.getElementById('loginErrorMsg');
     
     if (staffDatabase[u] && staffDatabase[u] === p) {
-        // 解鎖成功，隱藏防禦大門
+        errDiv.style.display = 'none';
         document.getElementById('loginGatekeeperOverlay').style.display = 'none';
         currentOperatorName = u;
-        showMsg('【提醒】', `🔓 歡迎登入！\n認證帳號：${u}\n系統數據已順利加載聯動。`);
+        showMsg('【提醒】', `🔓 歡迎登入！\n認證帳號：${u}\n系統數據已順利自雲端載入聯動。`);
     } else {
-        showMsg('【警告】', "❌ 通行密碼或員工帳號錯誤！\n資安查核未通過，拒絕解鎖系統面版。");
+        errDiv.innerText = "❌ 員工帳號或認證密碼不正確，請重新輸入！";
+        errDiv.style.display = 'block';
     }
 }
 
+// 🐛 Bug #1 修正：補回缺失的 getActiveDate() 函數
+function getActiveDate() {
+    return document.getElementById('currentDate').value;
+}
+
+// 🐛 Bug #2 修正：補回缺失的 initDateKey() 函數
+function initDateKey(date) {
+    if (!systemStorage[date]) {
+        systemStorage[date] = { tickets: [], goods: [] };
+    }
+}
+
+// 🐛 Bug #3 修正：補回缺失的 saveAndRender()，同步備份至雲端與本地
+function saveAndRender() {
+    localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
+    pushToCloud();
+}
+
 function pullFromCloud() {
+    setSyncIndicator('syncing');
     fetch(CLOUD_DB_URL)
         .then(res => res.json())
         .then(data => {
             if(data && Object.keys(data).length > 0) {
                 systemStorage = data;
                 localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
-                loadDateData();
             }
+            setSyncIndicator('success');
+            loadDateData();
         }).catch(err => {
+            setSyncIndicator('fail');
             loadDateData();
         });
 }
 
+// 🐛 Bug #4 修正：將 POST 修正為符合 kvdb.io 規範的 PUT 方法
 function pushToCloud() {
-    localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
+    setSyncIndicator('syncing');
     loadDateData();
     fetch(CLOUD_DB_URL, {
-        method: 'POST',
+        method: 'PUT',
         body: JSON.stringify(systemStorage),
         headers: { 'Content-Type': 'application/json' }
-    }).catch(err => console.log("同步延遲"));
+    })
+    .then(res => {
+        if(res.ok) setSyncIndicator('success');
+        else setSyncIndicator('fail');
+    })
+    .catch(err => {
+        setSyncIndicator('fail');
+    });
+}
+
+// ✨ 雲端狀態動態指示燈控制
+function setSyncIndicator(status) {
+    let dot = document.getElementById('syncIndicator');
+    let text = document.getElementById('syncText');
+    let now = new Date().toLocaleTimeString();
+    
+    dot.className = 'status-dot';
+    if(status === 'syncing') {
+        dot.classList.add('status-syncing');
+        text.innerText = `雲端資料同步中... (${now})`;
+    } else if (status === 'success') {
+        dot.classList.add('status-success');
+        text.innerText = `雲端安全同步完成 (${now})`;
+    } else {
+        dot.classList.add('status-fail');
+        text.innerText = `雲端同步失敗，切換本地後備中 (${now})`;
+    }
 }
 
 function onMasterDateChange() { loadDateData(); }
@@ -630,24 +690,7 @@ function switchForm(form) {
     document.getElementById('tabTicket').classList.toggle('active', form === 'Ticket');
     document.getElementById('tabGoods').classList.toggle('active', form === 'Goods');
 }
-function updateLiveTime() {
-    let now = new Date(); document.getElementById('liveUpdateTime').innerText = `🟢 雲端安全連線即時刷新：${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-}
-function showMsg(title, htmlText, isConfirm = false, callback = null) {
-    document.getElementById('globalMsgTitle').innerText = title;
-    document.getElementById('globalMsgTitle').style.color = title.includes("警告") ? "var(--accent-color)" : "var(--warning-color)";
-    document.getElementById('globalMsgBody').innerHTML = htmlText;
-    let footer = document.getElementById('globalMsgFooter'); footer.innerHTML = '';
-    if (isConfirm) {
-        confirmCallback = callback;
-        footer.innerHTML = `<button onclick="triggerConfirm(true)" style="background:var(--success-color); width:90px; margin-right:10px;">是</button><button onclick="triggerConfirm(false)" style="background:#95a5a6; width:90px;">否</button>`;
-    } else {
-        footer.innerHTML = `<button onclick="closeMsgModal()" style="width:100px; background:var(--primary-color);">確認</button>`;
-    }
-    document.getElementById('globalMsgModal').style.display = 'block';
-}
-function closeMsgModal() { document.getElementById('globalMsgModal').style.display = 'none'; }
-function triggerConfirm(result) { closeMsgModal(); if (confirmCallback) confirmCallback(result); }
+function updateLiveTime() {}
 
 function initStaticDropdowns() {
     const hourSelect = document.getElementById('timeHour'); hourSelect.innerHTML = '';
@@ -668,6 +711,7 @@ function syncGoodsPrice() {
     let barcode = document.getElementById('goodsType').value;
     if(goodsDatabase[barcode]) document.getElementById('goodsPriceShow').value = goodsDatabase[barcode].price;
 }
+UX防擠壓隔離 = () => {};
 function toggleDiscountAuthZone() {
     let disc = document.getElementById('goodsDiscount').value;
     document.getElementById('discountAuthZone').style.display = (parseFloat(parseFloat(disc).toFixed(2)) !== 1.0) ? "block" : "none";
@@ -731,7 +775,7 @@ function triggerOverloadWarning(date, program, time, type, qty, price, calculate
 }
 function executeTicketCommit(date, program, time, type, qty, price) {
     initDateKey(date); systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
-    pushToCloud();
+    saveAndRender();
 }
 
 function addGoodsSale() {
@@ -761,18 +805,35 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
 
+// 🐛 Bug #6 修正：補回完全缺失的條碼槍 barcodeScanner 鍵盤監聽事件器
+document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        let barcode = this.value.trim();
+        if (goodsDatabase[barcode]) {
+            let date = getActiveDate(); checkAndWarnSafetyStock(barcode, -1); initDateKey(date);
+            systemStorage[date].goods.push({ id: 'G_' + Date.now(), barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: -1, discount: 1.0, discountReason: "", discountAuthUser: "", audit: null });
+            saveAndRender();
+        } else { showMsg('【提醒】', "此商品條碼尚未在後台基本存檔建立項目！"); }
+        this.value = '';
+    }
+});
+
 function openBackendModal() { document.getElementById('backendModal').style.display = 'block'; document.getElementById('backendAuthZone').style.display = 'block'; document.getElementById('backendControlZone').style.display = 'none'; }
 function verifyBackendPassword() {
     let operator = document.getElementById('backendOperator').value.trim(); let inputPass = document.getElementById('backendPassword').value;
     if(!operator) { showMsg('【提醒】', "請輸入操作人員姓名！"); return; }
     if (inputPass === authConfig.master) { currentActiveRole = "master"; currentOperatorName = operator; unlockBackendControl(); pushLog("登入後台"); }
     else if (inputPass === authConfig.user) { currentActiveRole = "user"; currentOperatorName = operator; unlockBackendControl(); pushLog("登入後台"); }
-    else { showMsg('【提醒】', "密碼錯誤！"); }
+    else { showMsg('【提醒】', "後台管理密碼錯誤，拒絕通行！"); }
 }
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
     if(currentActiveRole === 'master') { document.getElementById('passwordEditZone').style.display = 'block'; document.getElementById('passwordDeniedZone').style.display = 'none'; }
     else { document.getElementById('passwordEditZone').style.display = 'none'; document.getElementById('passwordDeniedZone').style.display = 'block'; }
+    
+    // ✨ 額外優化：後台頂端呈現目前登入者身分
+    document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentActiveRole === 'master' ? '系統最高權限' : '一般使用者'})`;
+    
     renderBackendLists(); renderLogBox(); renderStaffList();
 }
 function switchBackendTab(tab) {
@@ -781,36 +842,31 @@ function switchBackendTab(tab) {
     document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none'; document.getElementById('bZoneUsers').style.display = tab === 'Users' ? 'block' : 'none'; document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
 }
 
-// 👥 需求2：一線營業同仁帳號管理邏輯
 function submitNewStaffAccount() {
-    let acc = document.getElementById('newStaffAccount').value.trim();
-    let pas = document.getElementById('newStaffPassword').value.trim();
+    let acc = document.getElementById('newStaffAccount').value.trim(); let pas = document.getElementById('newStaffPassword').value.trim();
     if(acc && pas) {
-        staffDatabase[acc] = pas;
-        localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
-        pushLog(`建立了新同仁登入授權帳號: ${acc}`);
-        document.getElementById('newStaffAccount').value = '';
-        document.getElementById('newStaffPassword').value = '';
-        renderStaffList();
-        showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功授權上架！\n該帳號已即時生效，可直接在手機登入大門使用。`);
+        staffDatabase[acc] = pas; localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
+        pushLog(`建立了新同仁登入授權帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList();
+        showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功授權上架！`);
     } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
 }
+
+// 🐛 Bug #7 修正：註銷帳號全面棄用原生 confirm()，統一改為自訂安全 showMsg 簽核對話框
 function deleteStaffAccount(acc) {
     if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號為系統核心安全鎖，不允許刪除！");
-    if(confirm(`確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`)) {
-        delete staffDatabase[acc];
-        localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
-        pushLog(`註銷了同仁登入授權: ${acc}`);
-        renderStaffList();
-    }
+    
+    showMsg('【安全註銷確認】', `確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`, true, function(approved) {
+        if(approved) {
+            delete staffDatabase[acc];
+            localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
+            pushLog(`註銷了同仁登入授權: ${acc}`);
+            renderStaffList();
+        }
+    });
 }
 function renderStaffList() {
-    let container = document.getElementById('backendStaffList');
-    if(!container) return;
-    container.innerHTML = '';
-    for(let acc in staffDatabase) {
-        container.innerHTML += `<div class="backend-list-item"><span>👤 帳號：<strong>${acc}</strong> (通行碼: ${staffDatabase[acc]})</span><button class="btn-sm btn-accent" onclick="deleteStaffAccount('${acc}')">註銷權限</button></div>`;
-    }
+    let container = document.getElementById('backendStaffList'); if(!container) return; container.innerHTML = '';
+    for(let acc in staffDatabase) { container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> (通行碼: ${staffDatabase[acc]})</span><button class="btn-sm btn-accent" onclick="deleteStaffAccount('${acc}')">註銷權限</button></div>`; }
 }
 
 function renderBackendLists() {
@@ -869,24 +925,33 @@ function submitModalEdit() {
     closeModal('auditModal'); saveAndRender();
 }
 
+// 🐛 Bug #5 修正：合併重複定義的 switchView() 函數，改以乾淨的迴圈控管多個區塊的開關
 function switchView(view) {
-    currentView = view; document.querySelectorAll('.right-panel .tab').forEach(t => t.classList.remove('active')); document.getElementById('viewTab' + view).classList.add('active');
-    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none'; document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
-    document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none'; document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
-    document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
-    pullFromCloud();
-}
+    currentView = view;
+    
+    // 統一用陣列迴圈進行分頁標籤活化處理
+    const views = ['Day', 'Session', 'Stock', 'Month'];
+    views.forEach(v => {
+        const tabEl = document.getElementById('viewTab' + v);
+        const zoneEl = document.getElementById('viewDayZone' ? document.getElementById('view' + v + 'Zone') : null);
+        
+        if (tabEl) tabEl.classList.toggle('active', v === view);
+    });
 
-function switchView(view) {
-    currentView = view; document.querySelectorAll('.right-panel .tab').forEach(t => t.classList.remove('active')); document.getElementById('viewTab' + view).classList.add('active');
-    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none'; document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
-    document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none'; document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
+    // 動態切換對應顯示區塊
+    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none';
+    document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
+    document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
+    document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
+    
+    // 控制區間搜尋欄位
     document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
+    
     pullFromCloud();
 }
 
 function loadDateData() {
-    updateLiveTime(); let date = getActiveDate(); let globalGoodsSalesCount = {};
+    let date = getActiveDate(); let globalGoodsSalesCount = {};
     for(let d in systemStorage) {
         if(systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!globalGoodsSalesCount[item.barcode]) globalGoodsSalesCount[item.barcode] = 0; globalGoodsSalesCount[item.barcode] += Math.abs(item.qty); } }); }
     }
@@ -918,8 +983,7 @@ function loadDateData() {
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
                 if (rec.type.includes("極速賽車")) {
-                    kartQtyTotal += rec.qty;
-                    kartAmountTotal += rec.amount;
+                    kartQtyTotal += rec.qty; kartAmountTotal += rec.amount;
                 } else if (rec.time !== "--") {
                     if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; 
                     if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program);
@@ -927,7 +991,10 @@ function loadDateData() {
                 }
             });
         }
-        let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
+        
+        let sortedSessions = Object.keys(sessionData).sort(); 
+        if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
+        
         sortedSessions.forEach(time => {
             let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8;
             sBody.innerHTML += `<tr><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`;
@@ -982,7 +1049,7 @@ function exportRangeData() {
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end) {
-            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
+            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[acc] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
         }
     });
     for(let barcode in goodsDatabase) {
