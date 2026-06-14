@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v23</title>
+    <title>VOLARE 智慧雲端安全營運系統 v24</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -413,6 +413,12 @@
             </div>
 
             <div id="bZonePass" style="display:none;">
+                <div id="masterClearDataZone" style="display:none; background:#fee2e2; border: 2px dashed #f87171; padding:15px; border-radius:6px; margin-bottom:20px;">
+                    <h4 style="color:#b91c1c; margin:0 0 8px 0;">☣️ 最高權限特區：重置清空日誌紀錄</h4>
+                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將【當日所有登記紀錄】徹底洗空抹除並上傳 Google，全店手機電腦將同步清空，常用於測試結束。</p>
+                    <button onclick="executeMasterClearDaySales()" class="btn-accent" style="padding:10px; width:auto; font-size:13px;">🚨 清除當日所有交易紀錄</button>
+                </div>
+
                 <div id="passwordEditZone">
                     <h3>🔐 修改後台變更審查密碼 (限主要權限)</h3>
                     <div class="form-group"><label>新主要權限密碼：</label><input type="password" id="newMasterPass"></div>
@@ -438,8 +444,9 @@
             </span>
         </div>
         <div style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 6px;">
-            <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">📅 營運日期：</label>
-            <input type="date" id="currentDate" style="width: 160px; padding: 5px; border:none;" onchange="onMasterDateChange()">
+            <button onclick="pullFromCloud()" style="background:var(--warning-color); width:95px; padding:6px; font-size:13px; font-weight:bold; border-radius:4px; white-space:nowrap; cursor:pointer;">🔄 同步更新</button>
+            <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">📅 日期：</label>
+            <input type="date" id="currentDate" style="width: 145px; padding: 5px; border:none;" onchange="onMasterDateChange()">
         </div>
         <button onclick="openBackendModal()" style="background:#7f8c8d; width:auto; padding:8px 15px; font-size:13px; border-radius:4px;">⚙️ 後台設定</button>
     </header>
@@ -626,6 +633,14 @@ function executeActualLoginLogic() {
         currentOperatorName = u;
         initStaticDropdowns();
         loadDateData(); 
+        
+        // 🎯 優化 1 的權限鎖：若是最高權限 amy_chung，將後台隱形清除資料按鈕暴力亮起
+        if (u === "amy_chung@brogentglobal.com") {
+            document.getElementById('masterClearDataZone').style.display = 'block';
+        } else {
+            document.getElementById('masterClearDataZone').style.display = 'none';
+        }
+
         showMsg('【提醒】', `🔓 歡迎登入！\n認證帳號：${u}\n系統數據與設定檔已順利與 Google Sheets 聯動。`);
     } else {
         errDiv.innerText = "❌ 員工帳號或認證密碼不正確，請重新輸入！";
@@ -633,9 +648,28 @@ function executeActualLoginLogic() {
     }
 }
 
+// 🎯 優化 1核心功能：最高主管清除當日資料並秒速洗空雲端 A1
+function executeMasterClearDaySales() {
+    let date = getActiveDate();
+    let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong style="color:red;">${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？<br><br>一旦點選「是」，雲端與全店手機將全數同步歸零，無法復原！`;
+    
+    showMsg('【清除資料二次確認】', clearConfirmHtml, true, function(approved) {
+        if (approved) {
+            if (systemStorage[date]) {
+                systemStorage[date] = { tickets: [], goods: [] }; // 物理洗空
+                pushLog(`執行了最高權限清除資料：抹除 ${date} 營運紀錄`);
+                saveAndRender(); // 儲存並秒送 Google Sheets 
+                showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！\n全店雲端數據已同步完成。`);
+            } else {
+                showMsg('【提醒】', '今日目前本來就沒有任何資料。');
+            }
+        }
+    });
+}
+
 function showMsg(title, body, hasConfirm = false, callback = null) {
     document.getElementById('globalMsgTitle').innerText = title;
-    document.getElementById('globalMsgTitle').style.color = title.includes("警告") || title.includes("超載") || title.includes("撞片") ? "var(--accent-color)" : "var(--warning-color)";
+    document.getElementById('globalMsgTitle').style.color = title.includes("警告") || title.includes("超載") || title.includes("撞片") || title.includes("清除") ? "var(--accent-color)" : "var(--warning-color)";
     document.getElementById('globalMsgBody').innerHTML = body;
     
     let footer = document.getElementById('globalMsgFooter');
@@ -955,7 +989,6 @@ function renderStaffList() {
     });
 }
 
-// 後台相關功能維護
 function renderBackendLists() {
     let pList = document.getElementById('backendProgList'); pList.innerHTML = '';
     programList.forEach((p, idx) => { pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div>`; });
@@ -1051,7 +1084,6 @@ function loadDateData() {
                 ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
             });
             systemStorage[date].goods.forEach(item => {
-                // 🛠️ ✅ 【終極 Bug 修正點】徹底擊殺變數衝突，將 g.discount 修正為對齊 forEach 變數的 item.discount
                 let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0; 
                 let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (填寫人:${item.discountAuthUser})` : '--';
                 let auditLogHtml = item.audit ? `<tr><td colspan="9"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
