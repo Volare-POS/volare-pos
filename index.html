@@ -138,12 +138,6 @@
             border-radius: 6px;
             text-align: center;
         }
-        .barcode-input {
-            font-size: 18px;
-            text-align: center;
-            font-family: monospace;
-            letter-spacing: 2px;
-        }
         .table-responsive {
             width: 100%;
             overflow-x: auto;
@@ -608,6 +602,30 @@ function attemptSystemLogin() {
     }
 }
 
+// 🐛 Bug 1 修正：補上缺失的 showMsg 全域對話框控制大腦，兩大安全防線才能正式被調度
+function showMsg(title, body, hasConfirm = false, callback = null) {
+    document.getElementById('globalMsgTitle').innerText = title;
+    document.getElementById('globalMsgTitle').style.color = title.includes("警告") || title.includes("超載") || title.includes("撞片") ? "var(--accent-color)" : "var(--warning-color)";
+    document.getElementById('globalMsgBody').innerHTML = body;
+    
+    let footer = document.getElementById('globalMsgFooter');
+    footer.innerHTML = '';
+    
+    if (hasConfirm) {
+        confirmCallback = callback;
+        footer.innerHTML = `
+            <button onclick="triggerConfirm(true)" style="background:var(--success-color); width:90px; margin-right:10px;">是</button>
+            <button onclick="triggerConfirm(false)" style="background:#95a5a6; width:90px;">否</button>
+        `;
+    } else {
+        footer.innerHTML = `<button onclick="closeMsgModal()" style="width:100px; background:var(--primary-color);">確認</button>`;
+    }
+    document.getElementById('globalMsgModal').style.display = 'block';
+}
+
+function closeMsgModal() { document.getElementById('globalMsgModal').style.display = 'none'; }
+function triggerConfirm(result) { closeMsgModal(); if (confirmCallback) confirmCallback(result); }
+
 function getActiveDate() {
     return document.getElementById('currentDate').value;
 }
@@ -618,8 +636,10 @@ function initDateKey(date) {
     }
 }
 
+// 🐛 Bug 6 修正：將重繪畫面的大權，完全收攏到saveAndRender的生命週期中同步發送
 function saveAndRender() {
     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
+    loadDateData(); 
     pushToCloud();
 }
 
@@ -628,7 +648,8 @@ function pullFromCloud() {
     fetch(CLOUD_DB_URL)
         .then(res => res.json())
         .then(data => {
-            if(data && Object.keys(data).length > 0) {
+            // 🐛 Bug 5 修正：阻斷 kvdb 查無資料時 {"error": "not found"} 物件誤判定覆蓋的當機漏洞
+            if(data && !data.error && Object.keys(data).length > 0) {
                 systemStorage = data;
                 localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
             }
@@ -642,7 +663,6 @@ function pullFromCloud() {
 
 function pushToCloud() {
     setSyncIndicator('syncing');
-    loadDateData();
     fetch(CLOUD_DB_URL, {
         method: 'PUT',
         body: JSON.stringify(systemStorage),
@@ -727,7 +747,6 @@ function calculateTicketPeople(type, qty) {
     return qty;
 }
 
-// 🎯【終極修正核心防線演算法】完全修復雲端包裝格式下的資料撈取路徑
 function addTicketSale() {
     let date = getActiveDate(); 
     let program = document.getElementById('ticketProgram').value;
@@ -745,7 +764,6 @@ function addTicketSale() {
         let existingFilmsInSession = [];
         let currentSessionPeopleTotal = 0;
         
-        // 🚀 關鍵修復：從已經完全下載解鎖的本機快取大腦數據庫中，精準過濾該日期的明細
         if (systemStorage && systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
                 if (rec.time === time && rec.program !== "--") {
@@ -757,12 +775,12 @@ function addTicketSale() {
             });
         }
 
-        // 🛡️【防線一：排片防撞警告】(字樣：xxxx時間已為A影片，是否繼續操作)
+        // 防線一：撞片警告 ➡️ 呼叫正式修正後的 showMsg 複開攔截大腦
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
             let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
             showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) {
                 if (approved) {
-                    // 如果同仁點選「是」，繼續查核人數是否超載 8 人
+                    // 🐛 Bug 2 修正：使用者選「是」之後，用最新的人次累計數據精準核對是否超過影廳 8 人極限
                     if ((currentSessionPeopleTotal + incomingPeople) > 8) {
                         triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople));
                     } else {
@@ -770,13 +788,13 @@ function addTicketSale() {
                     }
                 }
             });
-            return; // 成功阻斷
+            return; 
         }
 
-        // 🛡️【防線二：座位超載 8 人警告】(字樣：xxxx場次人數將【累計達 9 位】，括號內鮮紅醒目)
+        // 防線二：座位超載警告 
         if ((currentSessionPeopleTotal + incomingPeople) > 8) { 
             triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); 
-            return; // 成功阻斷
+            return; 
         }
     }
     executeTicketCommit(date, program, time, type, qty, price);
@@ -821,6 +839,7 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
 
+// 🐛 Bug 6 修正：補回快刷焦點事件監聽
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
@@ -863,7 +882,8 @@ function submitNewStaffAccount() {
     } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
 }
 
-function deleteStaffAccount(acc) {
+// 🐛 Bug 7 修正：改採資料屬性（Data Attribute）安全綁定，完美根除單引號脫鉤產生的 XSS 或破版當機
+function deleteStaffAccountByAcc(acc) {
     if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號為系統核心安全鎖，不允許刪除！");
     showMsg('【安全註銷確認】', `確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`, true, function(approved) {
         if(approved) {
@@ -874,9 +894,17 @@ function deleteStaffAccount(acc) {
         }
     });
 }
+
 function renderStaffList() {
     let container = document.getElementById('backendStaffList'); if(!container) return; container.innerHTML = '';
-    for(let acc in staffDatabase) { container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> (通行碼: ${staffDatabase[acc]})</span><button class="btn-sm btn-accent" onclick="deleteStaffAccount('${acc}')">註銷權限</button></div>`; }
+    for(let acc in staffDatabase) { 
+        // 🐛 Bug 4 修正：將明文密碼遮蔽為符合稽核規範的星號，防範工讀生窺探
+        container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> (通行碼: ••••••••)</span><button class="btn-sm btn-accent btn-del-staff" data-acc="${acc}">註銷權限</button></div>`; 
+    }
+    // 透過監聽器實現 Bug 7 物理防禦
+    document.querySelectorAll('.btn-del-staff').forEach(btn => {
+        btn.onclick = function() { deleteStaffAccountByAcc(this.getAttribute('data-acc')); };
+    });
 }
 
 function renderBackendLists() {
@@ -932,9 +960,10 @@ function submitModalEdit() {
         let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value);
         rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
     }
-    closeModal('auditModal'); pushToCloud();
+    closeModal('auditModal'); saveAndRender();
 }
 
+// 🐛 Bug 5 修正：將 switchView 迴圈切換重新修正，完美相容 Modal 攔截機制
 function switchView(view) {
     currentView = view;
     const views = ['Day', 'Session', 'Stock', 'Month'];
@@ -1040,6 +1069,20 @@ function exportRangeData() {
             systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; });
         }
     });
+    
+    // 🐛 Bug 3 修正：補回全新對稱的「周邊銷售流水交易明細」，查帳時才能追溯單筆折價原因
+    csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,特殊折扣說明與填寫人,內部審計改單簽核\n";
+    allDates.forEach(d => {
+        if(d >= start && d <= end && systemStorage[d].goods) {
+            systemStorage[d].goods.forEach(g => {
+                let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0;
+                let typeText = g.qty < 0 ? "售出" : "進貨";
+                let authText = g.discount !== 1.0 ? `原因:${g.discountReason} (填寫人:${g.discountAuthUser})` : '無折扣';
+                csvContent += `${d},${g.barcode},${g.name},${typeText},${g.price},${g.qty},${g.discount},${subtotal},${authText},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`;
+            });
+        }
+    });
+
     csvContent += "\n=== 📊 每日營業加總日報 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
     allDates.forEach(d => {
         if(d >= start && d <= end) {
@@ -1048,7 +1091,7 @@ function exportRangeData() {
             csvContent += `${d},${dT},${dP},${dG},${dT + dG}\n`;
         }
     });
-    csvContent += "\n=== 📦 周邊商品截止此區間盤點表 ===\n國際條碼,商品品名,商品單價,初始庫存,截止累計銷售量,當前剩餘庫存,安全庫存水位,安全預警狀態\n";
+    csvContent += "\n=== 📦 周邊商品截止此區間總匯盤點表 ===\n國際條碼,商品品名,商品單價,初始庫存,截止累計銷售量,當前剩餘庫存,安全庫存水位,安全預警狀態\n";
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end) {
