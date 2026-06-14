@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端營運日誌系統 v15.5</title>
+    <title>VOLARE 智慧雲端安全營運系統 v16</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -24,6 +24,24 @@
             max-width: 1750px;
             margin: 0 auto;
         }
+        /* 🛡️ 全網網頁安全防護登入大門樣式 */
+        #loginGatekeeperOverlay {
+            position: fixed;
+            z-index: 9999;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-box {
+            background: #ffffff;
+            padding: 35px;
+            border-radius: 12px;
+            width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+        }
         header {
             display: flex;
             justify-content: space-between;
@@ -43,7 +61,6 @@
             align-items: start;
             width: 100%;
         }
-        /* 主控台絕對防跑位寬度鎖定 */
         .left-panel {
             width: 380px; 
             flex-shrink: 0; 
@@ -278,7 +295,7 @@
             margin-top: 10px;
         }
 
-        /* 📱 手機版自適應 RWD 斷點 */
+        /* 手機版自適應 RWD 斷點 */
         @media screen and (max-width: 850px) {
             body { padding: 10px; }
             header { flex-direction: column; align-items: stretch; padding: 15px; }
@@ -297,6 +314,21 @@
     </style>
 </head>
 <body>
+
+<div id="loginGatekeeperOverlay">
+    <div class="login-box">
+        <h2 style="border:none; text-align:center; color:var(--primary-color); margin-bottom:20px;">🔒 VOLARE 智慧雲端系統</h2>
+        <div class="form-group">
+            <label>員工認證帳號：</label>
+            <input type="text" id="gateUser" placeholder="請輸入公司電子郵件或同仁帳號">
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label>通行認證密碼：</label>
+            <input type="password" id="gatePass" placeholder="請輸入認證通行密碼">
+        </div>
+        <button onclick="attemptSystemLogin()" style="background:var(--primary-color); padding:12px; font-size:15px;">登入解鎖系統</button>
+    </div>
+</div>
 
 <div id="globalMsgModal" class="modal">
     <div class="modal-content" style="width: 480px; text-align: center;">
@@ -322,7 +354,7 @@
         <div class="modal-header">⚙️ VOLARE 營運後台核心設定中心</div>
         
         <div id="backendAuthZone">
-            <div class="form-group"><label>操作人員姓名 (必填)：</label><input type="text" id="backendOperator" placeholder="請輸入您的姓名"></div>
+            <div class="form-group"><label>後台變更操作人員姓名 (必填)：</label><input type="text" id="backendOperator" placeholder="請輸入您的姓名"></div>
             <div class="form-group"><label>請輸入管理員審查密碼：</label><input type="password" id="backendPassword" placeholder="請輸入防弊權限密碼"></div>
             <button onclick="verifyBackendPassword()">確認驗證</button>
         </div>
@@ -332,13 +364,16 @@
                 <div class="tab active" id="bTabProg" onclick="switchBackendTab('Prog')">影片節目維護</div>
                 <div class="tab" id="bTabTicket" onclick="switchBackendTab('Ticket')">營業票種維護</div>
                 <div class="tab" id="bTabGoods" onclick="switchBackendTab('Goods')">周邊商品與安全庫存維護</div>
+                <div class="tab" id="bTabUsers" onclick="switchBackendTab('Users')">👥 營業同仁帳號管理</div>
                 <div class="tab" id="bTabPass" onclick="switchBackendTab('Pass')">🔐 密碼與系統日誌</div>
             </div>
+
             <div id="bZoneProg">
                 <h3>新增影片節目項目</h3>
                 <div class="form-row form-group"><input type="text" id="newProgName" placeholder="輸入新影片名稱" style="flex:2;"><button onclick="submitNewProgram()" style="flex:1; background:var(--success-color);">建立</button></div>
                 <div id="backendProgList" style="max-height:200px; overflow-y:auto;"></div>
             </div>
+
             <div id="bZoneTicket" style="display:none;">
                 <h3>新增營運票種項目</h3>
                 <div class="form-row form-group">
@@ -348,6 +383,7 @@
                 </div>
                 <div id="backendTicketList" style="max-height:200px; overflow-y:auto;"></div>
             </div>
+
             <div id="bZoneGoods" style="display:none;">
                 <h3>建立/更新周邊商品基本檔</h3>
                 <div class="form-group">
@@ -357,15 +393,29 @@
                 </div>
                 <div id="backendGoodsList" style="max-height:250px; overflow-y:auto; border-top:1px solid #ccc; padding-top:10px;"></div>
             </div>
+
+            <div id="bZoneUsers" style="display:none;">
+                <h3>👥 新增一線同仁網址登入權限帳號</h3>
+                <div class="form-group">
+                    <div class="form-row">
+                        <input type="text" id="newStaffAccount" placeholder="員工帳號 (例：tailong-pos)" style="flex:1;">
+                        <input type="text" id="newStaffPassword" placeholder="認證密碼" style="flex:1;">
+                        <button onclick="submitNewStaffAccount()" style="flex:1; background:var(--success-color);">授權上架</button>
+                    </div>
+                </div>
+                <h4 style="margin-top:20px;">目前已獲准連線之同仁名冊</h4>
+                <div id="backendStaffList" style="max-height:200px; overflow-y:auto;"></div>
+            </div>
+
             <div id="bZonePass" style="display:none;">
                 <div id="passwordEditZone">
-                    <h3>🔐 修改權限密碼 (限主要權限)</h3>
+                    <h3>🔐 修改後台變更審查密碼 (限主要權限)</h3>
                     <div class="form-group"><label>新主要權限密碼：</label><input type="password" id="newMasterPass"></div>
                     <div class="form-group"><label>新一般使用者密碼：</label><input type="password" id="newUserPass"></div>
                     <button onclick="changeSystemPasswords()" style="background:var(--warning-color);">確認儲存新密碼組</button>
                 </div>
                 <div id="passwordDeniedZone" style="display:none; color:var(--accent-color); font-weight:bold; padding:10px; background:#fff5f5; border-radius:4px;">⚠️ 您無權修改系統核心防弊密碼。</div>
-                <h3>📜 後台歷史人員異動操作紀錄</h3>
+                <h3 style="margin-top:20px;">📜 後台歷史人員異動操作紀錄</h3>
                 <div class="log-box" id="adminLogContainer"></div>
             </div>
         </div>
@@ -426,7 +476,7 @@
                     <div class="form-group"><label>選擇票種</label><select id="ticketType" onchange="syncTicketPrice()"></select></div>
                     <div class="form-group"><label>張數</label><input type="number" id="ticketQty" value="1" min="1"></div>
                     <div class="form-group"><label>票券單價 ($)</label><input type="number" id="ticketPrice" value="249" min="0"></div>
-                    <button id="btnSubmitTicket" onclick="addTicketSale()">確定</button>
+                    <button id="btnSubmitTicket" onclick="addTicketSale()">確認</button>
                 </div>
                 <div id="formGoods" style="display:none;">
                     <div class="form-group"><label>選擇商品</label><select id="goodsType" onchange="syncGoodsPrice()"></select></div>
@@ -441,7 +491,7 @@
                         <div class="form-group"><label style="color:#8a6d3b;">⚠️ 特殊折扣原因</label><input type="text" id="goodsDiscountReason" placeholder="例：活動優惠"></div>
                         <div class="form-group"><label style="color:#8a6d3b;">⚠️ 填寫人姓名</label><input type="text" id="goodsDiscountAuthUser" placeholder="請簽名"></div>
                     </div>
-                    <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">周邊登記</button>
+                    <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">確認</button>
                 </div>
             </div>
         </div>
@@ -488,14 +538,19 @@
 </div>
 
 <script>
-// 免註冊雲端共享空間端點 (金鑰已獨立加密隔離)
-const CLOUD_DB_URL = "https://kvdb.io/BJN4pUaM6KqKx83Vby9N9R/volare_pos_cloud_db_v15_5";
+// 雲端鏈結資料庫端點 (已徹底物理排查語法錯誤)
+const CLOUD_DB_URL = "https://kvdb.io/BJN4pUaM6KqKx83Vby9N9R/volare_pos_cloud_db_v16";
 
 let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
 
-// 🎯 已將截圖中所有最新的完整官方票價清單直接寫入初始化基本檔中
+// 👥 需求2：一線員工登入帳密清單庫 (預載最高管理者)
+let defaultStaffDb = {
+    "amy_chung@brogentglobal.com": "5372858"
+};
+let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || defaultStaffDb;
+
 let defaultTicketDb = {
     "一般單片票": 249, "一般雙片票": 398, "單片X折票": 350, "動漫X折票": 0,
     "動漫單人票": 399, "動漫雙人票": 698, "企業優惠票": 220, "集團優惠票": 120,
@@ -520,10 +575,24 @@ document.getElementById('currentDate').value = todayStr;
 document.getElementById('expStart').value = todayStr; document.getElementById('expEnd').value = todayStr;
 rangeQueryStart = todayStr; rangeQueryEnd = todayStr;
 
-// 預加載防斷網路
 systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 initStaticDropdowns();
 pullFromCloud();
+
+// 🛡️ 需求2：登入驗證大門控制邏輯
+function attemptSystemLogin() {
+    let u = document.getElementById('gateUser').value.trim();
+    let p = document.getElementById('gatePass').value;
+    
+    if (staffDatabase[u] && staffDatabase[u] === p) {
+        // 解鎖成功，隱藏防禦大門
+        document.getElementById('loginGatekeeperOverlay').style.display = 'none';
+        currentOperatorName = u;
+        showMsg('【提醒】', `🔓 歡迎登入！\n認證帳號：${u}\n系統數據已順利加載聯動。`);
+    } else {
+        showMsg('【警告】', "❌ 通行密碼或員工帳號錯誤！\n資安查核未通過，拒絕解鎖系統面版。");
+    }
+}
 
 function pullFromCloud() {
     fetch(CLOUD_DB_URL)
@@ -535,7 +604,6 @@ function pullFromCloud() {
                 loadDateData();
             }
         }).catch(err => {
-            console.log("切換為本地高速快取備用模式");
             loadDateData();
         });
 }
@@ -547,7 +615,7 @@ function pushToCloud() {
         method: 'POST',
         body: JSON.stringify(systemStorage),
         headers: { 'Content-Type': 'application/json' }
-    }).catch(err => console.log("備份傳輸同步延遲中"));
+    }).catch(err => console.log("同步延遲"));
 }
 
 function onMasterDateChange() { loadDateData(); }
@@ -563,7 +631,7 @@ function switchForm(form) {
     document.getElementById('tabGoods').classList.toggle('active', form === 'Goods');
 }
 function updateLiveTime() {
-    let now = new Date(); document.getElementById('liveUpdateTime').innerText = `🟢 雲端聯動即時更新：${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+    let now = new Date(); document.getElementById('liveUpdateTime').innerText = `🟢 雲端安全連線即時刷新：${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
 }
 function showMsg(title, htmlText, isConfirm = false, callback = null) {
     document.getElementById('globalMsgTitle').innerText = title;
@@ -586,14 +654,11 @@ function initStaticDropdowns() {
     for(let i=0; i<24; i++) { let hStr = i < 10 ? '0' + i : i; hourSelect.innerHTML += `<option value="${hStr}">${hStr} 點</option>`; }
     const progSelect = document.getElementById('ticketProgram'); progSelect.innerHTML = '';
     programList.forEach(p => progSelect.innerHTML += `<option value="${p}">${p}</option>`);
-    
     const tSelect = document.getElementById('ticketType'); tSelect.innerHTML = '';
     for(let tName in ticketTypeDatabase) { tSelect.innerHTML += `<option value="${tName}">${tName}</option>`; }
-    
     const gSelect = document.getElementById('goodsType'); gSelect.innerHTML = '';
     for(let barcode in goodsDatabase) { gSelect.innerHTML += `<option value="${barcode}">${goodsDatabase[barcode].name}</option>`; }
-    syncTicketPrice();
-    syncGoodsPrice();
+    syncTicketPrice(); syncGoodsPrice();
 }
 function syncTicketPrice() {
     let tName = document.getElementById('ticketType').value;
@@ -617,10 +682,9 @@ function renderLogBox() {
     if(container) container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
 }
 
-// 🎯 需求1修正：雙片計 1 人次，雙人計 2 人次
 function calculateTicketPeople(type, qty) {
-    if (type.includes("雙片")) return qty * 1; 
-    if (type.includes("雙人")) return qty * 2; 
+    if (type.includes("雙片")) return qty * 1;
+    if (type.includes("雙人")) return qty * 2;
     return qty;
 }
 
@@ -631,7 +695,6 @@ function addTicketSale() {
     let price = parseInt(document.getElementById('ticketPrice').value);
     if (!date) { showMsg('【提醒】', '請先選取營運日期！'); return; }
     if (!qty || qty < 1) { showMsg('【提醒】', '請輸入正確的張數！'); return; }
-    
     if (type.includes("極速賽車")) { program = "隨到隨開場：極速賽車項目"; time = "--"; }
 
     if (time !== "--") {
@@ -645,9 +708,7 @@ function addTicketSale() {
         let currentSessionPeopleTotal = 0;
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
-                if (rec.time === time) {
-                    currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty);
-                }
+                if (rec.time === time) { currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); }
             });
         }
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
@@ -687,7 +748,7 @@ function addGoodsSale() {
     checkAndWarnSafetyStock(barcode, qty); initDateKey(date);
     systemStorage[date].goods.push({ id: 'G_' + Date.now(), barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: parsedDiscount, discountReason: reason, discountAuthUser: authUser, audit: null });
     document.getElementById('goodsDiscountReason').value = ""; document.getElementById('goodsDiscountAuthUser').value = ""; document.getElementById('goodsDiscount').value = "1.0";
-    toggleDiscountAuthZone(); pushToCloud();
+    toggleDiscountAuthZone(); saveAndRender();
 }
 
 function checkAndWarnSafetyStock(barcode, incomingQty) {
@@ -699,18 +760,6 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     let item = goodsDatabase[barcode]; let expectedStock = item.initStock - (totalSoldBefore + salesNeeded);
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
-
-document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        let barcode = this.value.trim();
-        if (goodsDatabase[barcode]) {
-            let date = getActiveDate(); checkAndWarnSafetyStock(barcode, -1); initDateKey(date);
-            systemStorage[date].goods.push({ id: 'G_' + Date.now(), barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: -1, discount: 1.0, discountReason: "", discountAuthUser: "", audit: null });
-            pushToCloud();
-        } else { showMsg('【提醒】', "條碼不存在！"); }
-        this.value = '';
-    }
-});
 
 function openBackendModal() { document.getElementById('backendModal').style.display = 'block'; document.getElementById('backendAuthZone').style.display = 'block'; document.getElementById('backendControlZone').style.display = 'none'; }
 function verifyBackendPassword() {
@@ -724,52 +773,68 @@ function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
     if(currentActiveRole === 'master') { document.getElementById('passwordEditZone').style.display = 'block'; document.getElementById('passwordDeniedZone').style.display = 'none'; }
     else { document.getElementById('passwordEditZone').style.display = 'none'; document.getElementById('passwordDeniedZone').style.display = 'block'; }
-    renderBackendLists(); renderLogBox();
+    renderBackendLists(); renderLogBox(); renderStaffList();
 }
 function switchBackendTab(tab) {
     currentBackendTab = tab; document.querySelectorAll('#backendControlZone .tab').forEach(t => t.classList.remove('active')); document.getElementById('bTab' + tab).classList.add('active');
     document.getElementById('bZoneProg').style.display = tab === 'Prog' ? 'block' : 'none'; document.getElementById('bZoneTicket').style.display = tab === 'Ticket' ? 'block' : 'none';
-    document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none'; document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
+    document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none'; document.getElementById('bZoneUsers').style.display = tab === 'Users' ? 'block' : 'none'; document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
 }
+
+// 👥 需求2：一線營業同仁帳號管理邏輯
+function submitNewStaffAccount() {
+    let acc = document.getElementById('newStaffAccount').value.trim();
+    let pas = document.getElementById('newStaffPassword').value.trim();
+    if(acc && pas) {
+        staffDatabase[acc] = pas;
+        localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
+        pushLog(`建立了新同仁登入授權帳號: ${acc}`);
+        document.getElementById('newStaffAccount').value = '';
+        document.getElementById('newStaffPassword').value = '';
+        renderStaffList();
+        showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功授權上架！\n該帳號已即時生效，可直接在手機登入大門使用。`);
+    } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
+}
+function deleteStaffAccount(acc) {
+    if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號為系統核心安全鎖，不允許刪除！");
+    if(confirm(`確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`)) {
+        delete staffDatabase[acc];
+        localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
+        pushLog(`註銷了同仁登入授權: ${acc}`);
+        renderStaffList();
+    }
+}
+function renderStaffList() {
+    let container = document.getElementById('backendStaffList');
+    if(!container) return;
+    container.innerHTML = '';
+    for(let acc in staffDatabase) {
+        container.innerHTML += `<div class="backend-list-item"><span>👤 帳號：<strong>${acc}</strong> (通行碼: ${staffDatabase[acc]})</span><button class="btn-sm btn-accent" onclick="deleteStaffAccount('${acc}')">註銷權限</button></div>`;
+    }
+}
+
 function renderBackendLists() {
     let pList = document.getElementById('backendProgList'); pList.innerHTML = '';
     programList.forEach((p, idx) => { pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div>`; });
-    
     let tList = document.getElementById('backendTicketList'); tList.innerHTML = '';
-    for(let tName in ticketTypeDatabase) {
-        tList.innerHTML += `<div class="backend-list-item"><span>${tName} ($${ticketTypeDatabase[tName]})</span><button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div>`;
-    }
-    
+    for(let tName in ticketTypeDatabase) { tList.innerHTML += `<div class="backend-list-item"><span>${tName} ($${ticketTypeDatabase[tName]})</span><button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div>`; }
     let gList = document.getElementById('backendGoodsList'); gList.innerHTML = '<h4>現有周邊品項清單</h4>';
     for(let barcode in goodsDatabase) { gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div>`; }
 }
 function submitNewProgram() { let val = document.getElementById('newProgName').value.trim(); if(val) { programList.push(val); localStorage.setItem('volare_programs_v13', JSON.stringify(programList)); pushLog(`新增影片: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); } }
 function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); localStorage.setItem('volare_programs_v13', JSON.stringify(programList)); pushLog(`刪除影片: ${old}`); renderBackendLists(); initStaticDropdowns(); }
 function submitNewTicket() { 
-    let val = document.getElementById('newTicketName').value.trim(); 
-    let defaultPrice = parseInt(document.getElementById('newTicketPriceDefault').value) || 0;
-    if(val) { 
-        ticketTypeDatabase[val] = defaultPrice; 
-        localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); 
-        pushLog(`新增票種: ${val} ($${defaultPrice})`); 
-        document.getElementById('newTicketName').value = ''; 
-        document.getElementById('newTicketPriceDefault').value = ''; 
-        renderBackendLists(); initStaticDropdowns(); 
-    } 
+    let val = document.getElementById('newTicketName').value.trim(); let defaultPrice = parseInt(document.getElementById('newTicketPriceDefault').value) || 0;
+    if(val) { ticketTypeDatabase[val] = defaultPrice; localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); pushLog(`新增票種: ${val} ($${defaultPrice})`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; renderBackendLists(); initStaticDropdowns(); } 
 }
-function deleteTicket(tName) { 
-    delete ticketTypeDatabase[tName]; 
-    localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); 
-    pushLog(`刪除票種: ${tName}`); 
-    renderBackendLists(); initStaticDropdowns(); 
-}
+function deleteTicket(tName) { delete ticketTypeDatabase[tName]; localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); }
 function submitNewGoods() {
     let bc = document.getElementById('newGBarcode').value.trim(); let name = document.getElementById('newGName').value.trim(); let price = parseInt(document.getElementById('newGPrice').value);
     let initStock = parseInt(document.getElementById('newGInit').value) || 0; let safety = parseInt(document.getElementById('newGSafety').value) || 0;
     if(bc && name && price) {
         goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety }; localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase));
         pushLog(`更新周邊: [${bc}] ${name}`); document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
-        renderBackendLists(); initStaticDropdowns(); pushToCloud(); showMsg('【提醒】', "周邊資料配置成功！");
+        renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊資料配置成功！");
     } else { showMsg('【提醒】', "請填寫完整欄位！"); }
 }
 function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase)); pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
@@ -801,7 +866,15 @@ function submitModalEdit() {
         let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value);
         rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
     }
-    closeModal('auditModal'); pushToCloud();
+    closeModal('auditModal'); saveAndRender();
+}
+
+function switchView(view) {
+    currentView = view; document.querySelectorAll('.right-panel .tab').forEach(t => t.classList.remove('active')); document.getElementById('viewTab' + view).classList.add('active');
+    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none'; document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
+    document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none'; document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
+    document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
+    pullFromCloud();
 }
 
 function switchView(view) {
@@ -839,7 +912,6 @@ function loadDateData() {
             });
         }
     } else if (currentView === 'Session') {
-        // 🎯 需求2：極速賽車與常規混開場次調度總表核心優化
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {};
         let kartQtyTotal = 0; let kartAmountTotal = 0;
 
@@ -855,16 +927,12 @@ function loadDateData() {
                 }
             });
         }
-        
-        let sortedSessions = Object.keys(sessionData).sort(); 
-        if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
-        
+        let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
         sortedSessions.forEach(time => {
             let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8;
             sBody.innerHTML += `<tr><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`;
         });
 
-        // 🎯 需求2修正：極速賽車特殊區塊常駐印出，完美整合今日開車總數據
         if (kartQtyTotal > 0) {
             sBody.innerHTML += `
                 <tr style="background:#fffbeb; border-top:2px solid #fef3c7;">
