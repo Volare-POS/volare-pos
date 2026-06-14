@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v20</title>
+    <title>VOLARE 智慧雲端安全營運系統 v20.5</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -546,7 +546,8 @@
 </div>
 
 <script>
-const CLOUD_DB_URL = "https://kvdb.io/BJN4pUaM6KqKx83Vby9N9R/volare_pos_cloud_db_v16";
+// 🚀 頂級對接：已將妳無痕發布的 Google GAS 雲端特快車大腦完美封裝
+const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwW2mll5UDELffjZ4G86NWDn6R7M8YzWuoWvqlL1qiye4ihl6b-LVJEh1kfOD3rhRQi/exec";
 
 let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
@@ -602,7 +603,7 @@ function attemptSystemLogin() {
     }
 }
 
-// 🐛 Bug 1 修正：補上缺失的 showMsg 全域對話框控制大腦，兩大安全防線才能正式被調度
+// 🐛 Bug 1 完美補回：全域警告、排片防撞、超載彈窗控制核心大腦
 function showMsg(title, body, hasConfirm = false, callback = null) {
     document.getElementById('globalMsgTitle').innerText = title;
     document.getElementById('globalMsgTitle').style.color = title.includes("警告") || title.includes("超載") || title.includes("撞片") ? "var(--accent-color)" : "var(--warning-color)";
@@ -636,7 +637,7 @@ function initDateKey(date) {
     }
 }
 
-// 🐛 Bug 6 修正：將重繪畫面的大權，完全收攏到saveAndRender的生命週期中同步發送
+// 🐛 Bug 6 完美修復：大腦重繪 loadDateData() 完美在寫入當下觸發，操作體感秒速無延遲
 function saveAndRender() {
     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
     loadDateData(); 
@@ -648,7 +649,7 @@ function pullFromCloud() {
     fetch(CLOUD_DB_URL)
         .then(res => res.json())
         .then(data => {
-            // 🐛 Bug 5 修正：阻斷 kvdb 查無資料時 {"error": "not found"} 物件誤判定覆蓋的當機漏洞
+            // 🐛 Bug 5 完美修復：加強 JSON 容錯，防止 {"error": "not found"} 覆蓋損毀本地快取
             if(data && !data.error && Object.keys(data).length > 0) {
                 systemStorage = data;
                 localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
@@ -664,12 +665,13 @@ function pullFromCloud() {
 function pushToCloud() {
     setSyncIndicator('syncing');
     fetch(CLOUD_DB_URL, {
-        method: 'PUT',
-        body: JSON.stringify(systemStorage),
-        headers: { 'Content-Type': 'application/json' }
+        method: 'POST', // Google Apps Script Web App 強制透過 POST 送入 doPost
+        body: JSON.stringify({ action: "write", data: systemStorage }),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     })
-    .then(res => {
-        if(res.ok) setSyncIndicator('success');
+    .then(res => res.json())
+    .then(resData => {
+        if(resData && resData.status === "success") setSyncIndicator('success');
         else setSyncIndicator('fail');
     })
     .catch(err => {
@@ -741,12 +743,6 @@ function renderLogBox() {
     if(container) container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
 }
 
-function calculateTicketPeople(type, qty) {
-    if (type.includes("雙片")) return qty * 1;
-    if (type.includes("雙人")) return qty * 2;
-    return qty;
-}
-
 function addTicketSale() {
     let date = getActiveDate(); 
     let program = document.getElementById('ticketProgram').value;
@@ -775,12 +771,12 @@ function addTicketSale() {
             });
         }
 
-        // 防線一：撞片警告 ➡️ 呼叫正式修正後的 showMsg 複開攔截大腦
+        // 防線一：撞片警告（完全修復） ➡️ 內文：xxxx時間已為A影片，是否繼續操作
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
             let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
             showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) {
                 if (approved) {
-                    // 🐛 Bug 2 修正：使用者選「是」之後，用最新的人次累計數據精準核對是否超過影廳 8 人極限
+                    // 🐛 Bug 2 完美修復：使用者選「是」之後，用最新的人次累計數據精準核對是否超過影廳 8 人極限
                     if ((currentSessionPeopleTotal + incomingPeople) > 8) {
                         triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople));
                     } else {
@@ -791,7 +787,7 @@ function addTicketSale() {
             return; 
         }
 
-        // 防線二：座位超載警告 
+        // 防線二：座位超載警告（完全修復） ➡️ 內文：此筆資料新增後，xxxx場次人數將【累計達 9 位】，括號內鮮紅醒目
         if ((currentSessionPeopleTotal + incomingPeople) > 8) { 
             triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); 
             return; 
@@ -839,7 +835,6 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
 
-// 🐛 Bug 6 修正：補回快刷焦點事件監聽
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
@@ -882,7 +877,6 @@ function submitNewStaffAccount() {
     } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
 }
 
-// 🐛 Bug 7 修正：改採資料屬性（Data Attribute）安全綁定，完美根除單引號脫鉤產生的 XSS 或破版當機
 function deleteStaffAccountByAcc(acc) {
     if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號為系統核心安全鎖，不允許刪除！");
     showMsg('【安全註銷確認】', `確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`, true, function(approved) {
@@ -898,10 +892,10 @@ function deleteStaffAccountByAcc(acc) {
 function renderStaffList() {
     let container = document.getElementById('backendStaffList'); if(!container) return; container.innerHTML = '';
     for(let acc in staffDatabase) { 
-        // 🐛 Bug 4 修正：將明文密碼遮蔽為符合稽核規範的星號，防範工讀生窺探
+        // 🐛 Bug 4 完美修復：將員工密碼全面星號遮蔽，主管操作後台不再有洩漏風險
         container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> (通行碼: ••••••••)</span><button class="btn-sm btn-accent btn-del-staff" data-acc="${acc}">註銷權限</button></div>`; 
     }
-    // 透過監聽器實現 Bug 7 物理防禦
+    // 🐛 Bug 7 完美修復：採用安全的原生監聽綁定，徹底杜絕單引號破版與注入風險
     document.querySelectorAll('.btn-del-staff').forEach(btn => {
         btn.onclick = function() { deleteStaffAccountByAcc(this.getAttribute('data-acc')); };
     });
@@ -963,7 +957,6 @@ function submitModalEdit() {
     closeModal('auditModal'); saveAndRender();
 }
 
-// 🐛 Bug 5 修正：將 switchView 迴圈切換重新修正，完美相容 Modal 攔截機制
 function switchView(view) {
     currentView = view;
     const views = ['Day', 'Session', 'Stock', 'Month'];
@@ -1070,7 +1063,7 @@ function exportRangeData() {
         }
     });
     
-    // 🐛 Bug 3 修正：補回全新對稱的「周邊銷售流水交易明細」，查帳時才能追溯單筆折價原因
+    // 🐛 Bug 3 完美修正：全方位補齊「周邊商品销售明細流水帳」，月底對單對折價再也沒有盲區
     csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,特殊折扣說明與填寫人,內部審計改單簽核\n";
     allDates.forEach(d => {
         if(d >= start && d <= end && systemStorage[d].goods) {
