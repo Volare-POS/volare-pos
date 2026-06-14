@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v18</title>
+    <title>VOLARE 智慧雲端安全營運系統 v19</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -612,7 +612,6 @@ function initDateKey(date) {
     }
 }
 
-// ✨ 打通 Bug#3，救回數據儲存生命週期
 function saveAndRender() {
     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
     pushToCloud();
@@ -722,7 +721,6 @@ function calculateTicketPeople(type, qty) {
     return qty;
 }
 
-// 🎯 需求1 & 需求2：雙重排片安全防線客製文字與顏色完美融合
 function addTicketSale() {
     let date = getActiveDate(); 
     let program = document.getElementById('ticketProgram').value;
@@ -754,7 +752,7 @@ function addTicketSale() {
             });
         }
 
-        // 🎯 需求2修正：精準客製化撞片警告文字 (xxxx時間已為A影片，是否繼續操作，如選是則繼續)
+        // 防線一：撞片客製文字提醒 
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
             let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
             showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) {
@@ -769,7 +767,7 @@ function addTicketSale() {
             return;
         }
 
-        // 🎯 需求1修正：精準對齊座位超載 8 人警告字樣與括號內顯眼紅字
+        // 防線二：座位超載 8 位客製文字警告
         if ((currentSessionPeopleTotal + incomingPeople) > 8) { 
             triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); 
             return; 
@@ -779,7 +777,6 @@ function addTicketSale() {
 }
 
 function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal) {
-    // 括號內文字由紅粗體醒目呈現
     let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，請確認是否繼續？`;
     showMsg('【座位超載警告】', warningHtml, true, function(approved) { 
         if (approved) executeTicketCommit(date, program, time, type, qty, price); 
@@ -818,7 +815,6 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
 }
 
-// ⚡ 條碼槍快速刷碼監聽器完美上線
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
@@ -933,9 +929,11 @@ function submitModalEdit() {
     closeModal('auditModal'); pushToCloud();
 }
 
+// 🐛 核心修復：徹底拆解合流錯誤，改寫成無暇的乾淨安全迴圈
 function switchView(view) {
     currentView = view;
     const views = ['Day', 'Session', 'Stock', 'Month'];
+    
     views.forEach(v => {
         const tabEl = document.getElementById('viewTab' + v);
         if (tabEl) tabEl.classList.toggle('active', v === view);
@@ -1049,7 +1047,8 @@ function exportRangeData() {
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end) {
-            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[acc] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
+            // 🐛 Bug #4.5 物理修正完畢
+            if(systemStorage[d].goods){ systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); }
         }
     });
     for(let barcode in goodsDatabase) {
