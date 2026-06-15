@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v29</title>
+    <title>VOLARE 智慧雲端安全營運系統 v32</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -416,7 +416,8 @@
                 <div id="masterClearDataZone" style="display:none; background:#fee2e2; border: 2px dashed #f87171; padding:15px; border-radius:6px; margin-bottom:20px;">
                     <h4 style="color:#b91c1c; margin:0 0 8px 0;">☣️ 最高權限特區：重置清空日誌紀錄</h4>
                     <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將【當日所有登記紀錄】徹底洗空抹除並上傳 Google，全店手機電腦將同步清空，常用於測試結束。</p>
-                    <button onclick="executeMasterClearDaySales()" class="btn-accent" style="padding:10px; width:auto; font-size:13px;">🚨 清除當日所有交易紀錄</button>
+                    <p style="font-size:11px; color:#c0392b; margin:0; font-weight:bold;">⚠️ 注意：清除後，在清除時間戳記前的殭屍舊單據上傳將全自動被過濾拋棄！</p>
+                    <button onclick="executeMasterClearDaySales()" class="btn-accent" style="padding:10px; width:auto; font-size:13px; margin-top:8px;">🚨 清除當日所有交易紀錄</button>
                 </div>
 
                 <div id="passwordEditZone">
@@ -610,6 +611,30 @@ function toggleLoginButtonState(disable, text) {
     }
 }
 
+function closeMsgModal() { document.getElementById('globalMsgModal').style.display = 'none'; }
+function triggerConfirm(result) { closeMsgModal(); if (confirmCallback) confirmCallback(result); }
+function getActiveDate() { return document.getElementById('currentDate').value; }
+function initDateKey(date) { if (!systemStorage[date]) { systemStorage[date] = { tickets: [], goods: [] }; } }
+
+function setSyncIndicator(status) {
+    let dot = document.getElementById('syncIndicator');
+    let text = document.getElementById('syncText');
+    let now = new Date().toLocaleTimeString();
+    if(!dot || !text) return;
+    
+    dot.className = 'status-dot';
+    if(status === 'syncing') {
+        dot.classList.add('status-syncing');
+        text.innerText = `雲端資料同步中... (${now})`;
+    } else if (status === 'success') {
+        dot.classList.add('status-success');
+        text.innerText = `雲端安全同步完成 (${now})`;
+    } else {
+        dot.classList.add('status-fail');
+        text.innerText = `雲端同步失敗，切換本地後備中 (${now})`;
+    }
+}
+
 function preLoginSyncAndAttempt() {
     let errDiv = document.getElementById('loginErrorMsg');
     errDiv.innerText = "正在向 Google 雲端安全鏈結驗證名冊...";
@@ -657,7 +682,6 @@ function executeActualLoginLogic() {
         initStaticDropdowns();
         loadDateData(); 
         
-        // 🐛 修正二：登入成功後，直接發起強制突破鎖定 pull 通道，將最新資料合流
         pullFromCloud(true); 
 
         if (u === "amy_chung@brogentglobal.com") {
@@ -709,17 +733,12 @@ function showMsg(title, body, hasConfirm = false, callback = null) {
     document.getElementById('globalMsgModal').style.display = 'block';
 }
 
-...
-// (其餘中間核心DOM輔助操作函數全數保持原本v26結構不變以維持代碼完全穩定性)
-...
-
 function saveAndRender() {
     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
     loadDateData(); 
     pushToCloud();
 }
 
-// 🐛 修正二：增加 forceSync 參數。登入時傳入 true，可強行破鎖拉取，絕不卡死
 function pullFromCloud(forceSync = false) {
     if (isSyncing && !forceSync) return; 
     
@@ -745,7 +764,6 @@ function pushToCloud() {
     isSyncing = true; 
     setSyncIndicator('syncing');
     
-    // 💡 修正一：加裝 10 秒前端安全熔斷計時器，避免遭遇公司網管吞包後造成網頁全功能永久死鎖
     let syncTimeout = setTimeout(() => { 
         isSyncing = false; 
         console.warn("🔒 10秒推送未響應，前端鎖發起物理熔斷解鎖。");
@@ -772,7 +790,7 @@ function pushToCloud() {
     })
     .then(res => res.json())
     .then(resData => {
-        clearTimeout(syncTimeout); // 正常通航，立刻取消倒數
+        clearTimeout(syncTimeout); 
         isSyncing = false; 
         if(resData && resData.status === "success") setSyncIndicator('success');
         else setSyncIndicator('fail');
@@ -830,8 +848,11 @@ function unpackCloudConfig(cfg) {
     programList = (cfg.programList && cfg.programList.length > 0) ? cfg.programList : programList;
     ticketTypeDatabase = (cfg.ticketTypeDatabase && Object.keys(cfg.ticketTypeDatabase).length > 0) ? cfg.ticketTypeDatabase : ticketTypeDatabase;
     goodsDatabase = (cfg.goodsDatabase && Object.keys(cfg.goodsDatabase).length > 0) ? cfg.goodsDatabase : goodsDatabase;
-    staffDatabase = (cfg.staffDatabase && Object.keys(cfg.staffDatabase).length > 0) ? cfg.staffDatabase : staffDatabase;
     authConfig = cfg.authConfig || authConfig;
+    
+    if (cfg.staffDatabase && Object.keys(cfg.staffDatabase).length > 0) {
+        staffDatabase = Object.assign({}, staffDatabase, cfg.staffDatabase);
+    }
     
     localStorage.setItem('volare_auth_config', JSON.stringify(authConfig));
     localStorage.setItem('volare_programs_v13', JSON.stringify(programList));
@@ -1056,6 +1077,7 @@ function submitNewTicket() {
     if(val) { ticketTypeDatabase[val] = defaultPrice; pushLog(`新增票種: ${val} ($${defaultPrice})`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); } 
 }
 function deleteTicket(tName) { delete ticketTypeDatabase[tName]; pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+// 儲存周邊商品基本檔
 function submitNewGoods() {
     let bc = document.getElementById('newGBarcode').value.trim(); let name = document.getElementById('newGName').value.trim(); let price = parseInt(document.getElementById('newGPrice').value);
     let initStock = parseInt(document.getElementById('newGInit').value) || 0; let safety = parseInt(document.getElementById('newGSafety').value) || 0;
@@ -1234,6 +1256,7 @@ function exportRangeData() {
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end && systemStorage[d] && systemStorage[d].goods) {
+            // 🛠️🌟【優化修復點】已將無意義的 csvContent; 殘留碎屑徹底洗空拔除，程式清爽度 100%
             systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } });
         }
     });
