@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v24</title>
+    <title>VOLARE 智慧雲端安全營運系統 v26</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -555,6 +555,8 @@
 <script>
 const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwW2mll5UDELffjZ4G86NWDn6R7M8YzWuoWvqlL1qiye4ihl6b-LVJEh1kfOD3rhRQi/exec";
 
+let isSyncing = false; 
+
 let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
@@ -610,7 +612,7 @@ function preLoginSyncAndAttempt() {
         .then(resData => {
             if (resData && !resData.error) {
                 if (resData.config) unpackCloudConfig(resData.config);
-                if (resData.sales) systemStorage = resData.sales;
+                if (resData.sales) smartMergeSales(resData.sales); 
                 localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
             }
             setSyncIndicator('success');
@@ -634,7 +636,6 @@ function executeActualLoginLogic() {
         initStaticDropdowns();
         loadDateData(); 
         
-        // 🎯 優化 1 的權限鎖：若是最高權限 amy_chung，將後台隱形清除資料按鈕暴力亮起
         if (u === "amy_chung@brogentglobal.com") {
             document.getElementById('masterClearDataZone').style.display = 'block';
         } else {
@@ -648,21 +649,19 @@ function executeActualLoginLogic() {
     }
 }
 
-// 🎯 優化 1核心功能：最高主管清除當日資料並秒速洗空雲端 A1
+// 🐛 核心優化修復點：清除當日資料時，打上 cleavedAt 絕對物理時間戳記，防範殭屍資料還魂
 function executeMasterClearDaySales() {
     let date = getActiveDate();
     let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong style="color:red;">${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？<br><br>一旦點選「是」，雲端與全店手機將全數同步歸零，無法復原！`;
     
     showMsg('【清除資料二次確認】', clearConfirmHtml, true, function(approved) {
         if (approved) {
-            if (systemStorage[date]) {
-                systemStorage[date] = { tickets: [], goods: [] }; // 物理洗空
-                pushLog(`執行了最高權限清除資料：抹除 ${date} 營運紀錄`);
-                saveAndRender(); // 儲存並秒送 Google Sheets 
-                showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！\n全店雲端數據已同步完成。`);
-            } else {
-                showMsg('【提醒】', '今日目前本來就沒有任何資料。');
-            }
+            initDateKey(date);
+            // 🎯 在當日節點綁定 cleavedAt，蓋下轉折戳記
+            systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; 
+            pushLog(`執行了最高權限清除資料：抹除 ${date} 營運紀錄`);
+            saveAndRender(); 
+            showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！\n全店雲端數據已同步完成。`);
         }
     });
 }
@@ -707,13 +706,16 @@ function saveAndRender() {
 }
 
 function pullFromCloud() {
+    if (isSyncing) return; 
+    
     setSyncIndicator('syncing');
     fetch(CLOUD_DB_URL)
         .then(res => res.json())
         .then(resData => {
+            if (isSyncing) return; 
             if(resData && !resData.error) {
                 if (resData.config) unpackCloudConfig(resData.config);
-                if (resData.sales) systemStorage = resData.sales;
+                if (resData.sales) smartMergeSales(resData.sales); 
                 localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
             }
             setSyncIndicator('success');
@@ -725,6 +727,7 @@ function pullFromCloud() {
 }
 
 function pushToCloud() {
+    isSyncing = true; 
     setSyncIndicator('syncing');
     
     let payload = {
@@ -748,12 +751,61 @@ function pushToCloud() {
     })
     .then(res => res.json())
     .then(resData => {
+        isSyncing = false; 
         if(resData && resData.status === "success") setSyncIndicator('success');
         else setSyncIndicator('fail');
     })
     .catch(err => {
+        isSyncing = false;
         setSyncIndicator('fail');
     });
+}
+
+// 🚀【升級版：增量合流演算法】精準判定清除時間戳記，徹底滅絕離線殭屍舊資料回填
+function smartMergeSales(cloudSales) {
+    if (!cloudSales) return;
+    for (let date in cloudSales) {
+        if (!systemStorage[date]) {
+            systemStorage[date] = cloudSales[date];
+        } else {
+            // 🎯 如果雲端攜帶了最新清除註記，而本地沒有，或雲端的清除時間比本地更新，以雲端清除狀態為準
+            if (cloudSales[date].clearedAt) {
+                if (!systemStorage[date].clearedAt || cloudSales[date].clearedAt > systemStorage[date].clearedAt) {
+                    systemStorage[date].clearedAt = cloudSales[date].clearedAt;
+                    systemStorage[date].tickets = [];
+                    systemStorage[date].goods = [];
+                }
+            }
+            
+            let localClearedAt = systemStorage[date].clearedAt || 0;
+
+            // 合併票券防線
+            if (cloudSales[date].tickets) {
+                cloudSales[date].tickets.forEach(cTicket => {
+                    // 💥 攔截：如果這張票的 id 創立時間，早於本區塊被清除的時間，直接視為過期殭屍，忽略！
+                    let ticketTimestamp = parseInt(cTicket.id.split('_')[1]) || 0;
+                    if (localClearedAt && ticketTimestamp < localClearedAt) return;
+                    
+                    if (!systemStorage[date].tickets.some(lTicket => lTicket.id === cTicket.id)) {
+                        systemStorage[date].tickets.push(cTicket);
+                    }
+                });
+            }
+            
+            // 合併周邊防線
+            if (cloudSales[date].goods) {
+                cloudSales[date].goods.forEach(cGood => {
+                    // 💥 攔截：如果周邊出生時間早於清除戳記，直接忽略！
+                    let goodTimestamp = parseInt(cGood.id.split('_')[1]) || 0;
+                    if (localClearedAt && goodTimestamp < localClearedAt) return;
+                    
+                    if (!systemStorage[date].goods.some(lGood => lGood.id === cGood.id)) {
+                        systemStorage[date].goods.push(cGood);
+                    }
+                });
+            }
+        }
+    }
 }
 
 function unpackCloudConfig(cfg) {
@@ -771,25 +823,7 @@ function unpackCloudConfig(cfg) {
     localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase));
 }
 
-function setSyncIndicator(status) {
-    let dot = document.getElementById('syncIndicator');
-    let text = document.getElementById('syncText');
-    let now = new Date().toLocaleTimeString();
-    
-    dot.className = 'status-dot';
-    if(status === 'syncing') {
-        dot.classList.add('status-syncing');
-        text.innerText = `雲端資料同步中... (${now})`;
-    } else if (status === 'success') {
-        dot.classList.add('status-success');
-        text.innerText = `雲端安全同步完成 (${now})`;
-    } else {
-        dot.classList.add('status-fail');
-        text.innerText = `雲端同步失敗，切換本地後備中 (${now})`;
-    }
-}
-
-function onMasterDateChange() { loadDateData(); }
+function onMasterDateChange() { pullFromCloud(); } 
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
@@ -893,7 +927,9 @@ function triggerOverloadWarning(date, program, time, type, qty, price, calculate
 }
 
 function executeTicketCommit(date, program, time, type, qty, price) {
-    initDateKey(date); systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
+    initDateKey(date); 
+    // 為防線對齊：將單據的 id 命名格式正式標準化為 T_毫秒時間戳記，利於 cleavedAt 精準比對
+    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
     saveAndRender();
 }
 
@@ -1014,6 +1050,7 @@ function submitNewGoods() {
     } else { showMsg('【提醒】', "請填寫完整欄位！"); }
 }
 function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+// 主要密碼變動
 function changeSystemPasswords() {
     let mPass = document.getElementById('newMasterPass').value.trim(); let uPass = document.getElementById('newUserPass').value.trim();
     if(mPass) { authConfig.master = mPass; pushLog("變更主要密碼"); } if(uPass) { authConfig.user = uPass; pushLog("變更一般密碼"); }
@@ -1060,7 +1097,7 @@ function switchView(view) {
     document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
     document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
     
-    pullFromCloud();
+    loadDateData(); 
 }
 
 function loadDateData() {
@@ -1070,25 +1107,29 @@ function loadDateData() {
     }
     let tSum = 0, tPeople = 0, gSum = 0;
     if (systemStorage[date]) {
-        systemStorage[date].tickets.forEach(x => { tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); });
-        systemStorage[date].goods.forEach(y => { if(y.qty < 0) gSum += Math.round(y.price * Math.abs(y.qty) * y.discount); });
+        if(systemStorage[date].tickets) systemStorage[date].tickets.forEach(x => { tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); });
+        if(systemStorage[date].goods) systemStorage[date].goods.forEach(y => { if(y.qty < 0) gSum += Math.round(y.price * Math.abs(y.qty) * y.discount); });
     }
     document.getElementById('dayTicketSum').innerText = `$ ${tSum.toLocaleString()} (${tPeople} 人次)`; document.getElementById('dayGoodsSum').innerText = `$ ${gSum.toLocaleString()}`; document.getElementById('dayTotalSum').innerText = `$ ${(tSum + gSum).toLocaleString()}`;
 
     if (currentView === 'Day') {
         let ticketBody = document.getElementById('ticketTableBody'); let goodsBody = document.getElementById('goodsTableBody'); ticketBody.innerHTML = ''; goodsBody.innerHTML = '';
         if (systemStorage[date]) {
-            systemStorage[date].tickets.forEach(item => {
-                let peopleCount = calculateTicketPeople(item.type, item.qty);
-                let auditLogHtml = item.audit ? `<tr><td colspan="8"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
-                ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
-            });
-            systemStorage[date].goods.forEach(item => {
-                let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0; 
-                let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (填寫人:${item.discountAuthUser})` : '--';
-                let auditLogHtml = item.audit ? `<tr><td colspan="9"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
-                goodsBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.barcode}</td><td>${item.name}</td><td>${item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>":"<span style='color:green;'>🟢 進貨</span>"}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#8a6d3b; font-size:11px;">${authText}</td><td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
-            });
+            if(systemStorage[date].tickets) {
+                systemStorage[date].tickets.forEach(item => {
+                    let peopleCount = calculateTicketPeople(item.type, item.qty);
+                    let auditLogHtml = item.audit ? `<tr><td colspan="8"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
+                    ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
+                });
+            }
+            if(systemStorage[date].goods) {
+                systemStorage[date].goods.forEach(item => {
+                    let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0; 
+                    let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (填寫人:${item.discountAuthUser})` : '--';
+                    let auditLogHtml = item.audit ? `<tr><td colspan="9"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
+                    goodsBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.barcode}</td><td>${item.name}</td><td>${item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>":"<span style='color:green;'>🟢 進貨</span>"}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#8a6d3b; font-size:11px;">${authText}</td><td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
+                });
+            }
         }
     } else if (currentView === 'Session') {
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {};
@@ -1135,7 +1176,8 @@ function loadDateData() {
         if(filteredDates.length === 0) monthBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">此選取查詢區間內目前尚無營業數據</td></tr>`;
         filteredDates.forEach(d => {
             let dT = 0, dP = 0, dG = 0;
-            systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += calculateTicketPeople(x.type, x.qty); }); systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); });
+            if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += calculateTicketPeople(x.type, x.qty); }); 
+            if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); });
             monthBody.innerHTML += `<tr><td><strong>${d}</strong></td><td>$ ${dT.toLocaleString()}</td><td>${dP} 人次</td><td>$ ${dG.toLocaleString()}</td><td><strong>$ ${(dT + dG).toLocaleString()}</strong></td></tr>`;
         });
     }
