@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v41</title>
+    <title>VOLARE 智慧雲端安全營運系統 v42</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -271,14 +271,14 @@
         <h2 style="border:none; text-align:center; color:var(--primary-color); margin-bottom:20px;">🔒 VOLARE 智慧雲端系統</h2>
         <div class="form-group">
             <label>登入帳號：</label>
-            <input type="text" id="gateUser" placeholder="請輸入登入帳號 (amy_chung@brogentglobal.com / volare)">
+            <input type="text" id="gateUser" placeholder="">
         </div>
         <div class="form-group" style="margin-bottom: 12px;">
             <label>密碼：</label>
-            <input type="password" id="gatePass" placeholder="請輸入密碼">
+            <input type="password" id="gatePass" placeholder="">
         </div>
         <div id="loginErrorMsg" style="color:var(--accent-color); font-size:13px; font-weight:bold; margin-bottom:15px; text-align:center; display:none;"></div>
-        <button id="btnLoginAction" onclick="preLoginSyncAndAttempt()" style="background:var(--primary-color); padding:12px; font-size:15px;">登入解鎖系統</button>
+        <button id="btnLoginAction" onclick="preLoginSyncAndAttempt()">登入解鎖系統</button>
     </div>
 </div>
 
@@ -306,8 +306,8 @@
         <div class="modal-header">⚙️ VOLARE 營運後台核心設定中心</div>
         
         <div id="backendAuthZone">
-            <div class="form-group"><label>後台變更操作人員帳號 (必填)：</label><input type="text" id="backendOperator" placeholder="請輸入您的一對一操作員帳號"></div>
-            <div class="form-group"><label>請輸入管理員審查密碼：</label><input type="password" id="backendPassword" placeholder="請輸入您的個人後台密碼"></div>
+            <div class="form-group"><label>後台變更操作人員帳號 (必填)：</label><input type="text" id="backendOperator" placeholder=""></div>
+            <div class="form-group"><label>請輸入管理員審查密碼：</label><input type="password" id="backendPassword" placeholder=""></div>
             <button onclick="verifyBackendPassword()">確認驗證</button>
         </div>
 
@@ -326,7 +326,7 @@
 
             <div id="bZoneProg">
                 <h3>新增影片節目項目</h3>
-                <div class="form-row form-group"><input type="text" id="newProgName" placeholder="輸入新影片名稱" style="flex:2;"><button onclick="submitNewProgram()" style="flex:1; background:var(--success-color);">建立</button></div>
+                <div class="form-row form-group"><input type="text" id="newProgName" placeholder="" style="flex:2;"><button onclick="submitNewProgram()" style="flex:1; background:var(--success-color);">建立</button></div>
                 <div id="backendProgList" style="max-height:200px; overflow-y:auto;"></div>
             </div>
 
@@ -334,9 +334,9 @@
                 <h3>新增/修改營業票種人次</h3>
                 <div class="form-group">
                     <div class="form-row" style="margin-bottom:5px;">
-                        <input type="text" id="newTicketName" placeholder="輸入票種名稱" style="flex:2;">
-                        <input type="number" id="newTicketPriceDefault" placeholder="票券單價" style="flex:1;">
-                        <input type="number" id="newTicketSeatsDefault" placeholder="自訂計載人次" value="1" min="0" step="0.5" style="flex:1;">
+                        <input type="text" id="newTicketName" placeholder="" style="flex:2;">
+                        <input type="number" id="newTicketPriceDefault" placeholder="" style="flex:1;">
+                        <input type="number" id="newTicketSeatsDefault" placeholder="" value="1" min="0" step="0.5" style="flex:1;">
                     </div>
                     <button onclick="submitNewTicket()" style="background:var(--success-color);">建立或覆蓋票種基本檔</button>
                 </div>
@@ -346,8 +346,8 @@
             <div id="bZoneGoods" style="display:none;">
                 <h3>建立/更新周邊商品基本檔</h3>
                 <div class="form-group">
-                    <div class="form-row" style="margin-bottom: 5px;"><input type="text" id="newGBarcode" placeholder="國際條碼" style="flex:1;"><input type="text" id="newGName" placeholder="商品品名" style="flex:1;"></div>
-                    <div class="form-row"><input type="number" id="newGPrice" placeholder="零售定價" style="flex:1;"><input type="number" id="newGInit" placeholder="初始入庫量" style="flex:1;"><input type="number" id="newGSafety" placeholder="安全庫存量" style="flex:1;"></div>
+                    <div class="form-row" style="margin-bottom: 5px;"><input type="text" id="newGBarcode" placeholder="" style="flex:1;"><input type="text" id="newGName" placeholder="" style="flex:1;"></div>
+                    <div class="form-row"><input type="number" id="newGPrice" placeholder="" style="flex:1;"><input type="number" id="newGInit" placeholder="" style="flex:1;"><input type="number" id="newGSafety" placeholder="" style="flex:1;"></div>
                     <button onclick="submitNewGoods()" style="margin-top:8px; background:var(--success-color);">儲存並寫入基本檔</button>
                 </div>
                 <div id="backendGoodsList" style="max-height:200px; overflow-y:auto; border-top:1px solid #ccc; padding-top:10px;"></div>
@@ -357,8 +357,8 @@
                 <h3>🤝 新增/修改合作廠商會員資料庫</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="newVId" placeholder="會員/廠商代碼" style="flex:1;">
-                        <input type="text" id="newVName" placeholder="櫃位或廠商名稱" style="flex:1;">
+                        <input type="text" id="newVId" placeholder="" style="flex:1;">
+                        <input type="text" id="newVName" placeholder="" style="flex:1;">
                         <button onclick="submitNewVendor()" style="flex:1; background:var(--success-color);">儲存基本檔</button>
                     </div>
                 </div>
@@ -369,8 +369,8 @@
                 <h3 style="color:#b91c1c;">🔐 網頁第一層初始大門管理 (最高權限專屬)</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="masterGateAcc" placeholder="第一層登入帳號" style="flex:1;">
-                        <input type="text" id="masterGatePass" placeholder="密碼" style="flex:1;">
+                        <input type="text" id="masterGateAcc" placeholder="" style="flex:1;">
+                        <input type="text" id="masterGatePass" placeholder="" style="flex:1;">
                         <button onclick="submitMasterGateAccount()" style="flex:1; background:var(--accent-color);">更新大門名冊</button>
                     </div>
                 </div>
@@ -382,8 +382,8 @@
                 <h3>👥 新增一線同仁一對一獨立配對認證帳號</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="newStaffAccount" placeholder="全新員工帳號" style="flex:1;">
-                        <input type="text" id="newStaffPassword" placeholder="專屬個人認證密碼" style="flex:1;">
+                        <input type="text" id="newStaffAccount" placeholder="" style="flex:1;">
+                        <input type="text" id="newStaffPassword" placeholder="" style="flex:1;">
                         <button onclick="submitNewStaffAccount()" style="flex:1; background:var(--success-color);">授權上架</button>
                     </div>
                 </div>
@@ -476,8 +476,8 @@
                     </div>
                     <div class="form-group"><label>會員 / 合作廠商編號 (選填)</label><select id="goodsMemberId"></select></div>
                     <div id="discountAuthZone" style="display:none; background:#fff3cd; padding:10px; border-radius:4px; border-left:4px solid #f39c12; margin-bottom:12px;">
-                        <div class="form-group"><label style="color:#8a6d3b;">⚠️ 特殊折扣原因</label><input type="text" id="goodsDiscountReason" placeholder="例：活動優惠"></div>
-                        <div class="form-group"><label style="color:#8a6d3b;">⚠️ 填寫人姓名</label><input type="text" id="goodsDiscountAuthUser" placeholder="請簽名"></div>
+                        <div class="form-group"><label style="color:#8a6d3b;">⚠️ 特殊折扣原因</label><input type="text" id="goodsDiscountReason" placeholder=""></div>
+                        <div class="form-group"><label style="color:#8a6d3b;">⚠️ 填寫人姓名</label><input type="text" id="goodsDiscountAuthUser" placeholder=""></div>
                     </div>
                     <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">確認 (Enter)</button>
                 </div>
@@ -485,17 +485,6 @@
         </div>
 
         <div class="right-panel">
-            <div class="card" id="viewReportSummaryCard" style="display:block;">
-                <h2>📊 當日營業額業績統計匯總 (單日回報專用)</h2>
-                <div class="report-summary-box">
-                    <strong>🎫 票券項目累計銷量：</strong><span id="repTicketTypeSums">暫無票券銷售紀錄</span>
-                    <hr style="border:none; border-top:1px solid #cbd5e0; margin:8px 0;">
-                    <strong>🎬 影片主題累積載客：</strong><span id="repProgramPeopleSums">暫無影片觀看紀錄</span>
-                    <hr style="border:none; border-top:1px solid #cbd5e0; margin:8px 0;">
-                    <strong>🛍️ 周邊商品累積銷售：</strong><span id="repGoodsSums">暫無周邊商品售出紀錄</span>
-                </div>
-            </div>
-
             <div class="card">
                 <div class="tabs">
                     <div class="tab active" id="viewTabDay" onclick="switchView('Day')">📋 當日營運明細</div>
@@ -557,20 +546,17 @@
 </div>
 
 <script>
-// 🚀 核心歸位一：完美回補雲端總通路 API 變數，拔除底層死鎖
 const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwW2mll5UDELffjZ4G86NWDn6R7M8YzWuoWvqlL1qiye4ihl6b-LVJEh1kfOD3rhRQi/exec";
 
 let isSyncing = false; 
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["長安之上主題影片", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
 
-// 🚀 核心歸位二：精準修復連網大門鑰匙名冊。字眼對齊指定之【登入帳號】與【密碼】
 let initialLoginDatabase = JSON.parse(localStorage.getItem('volare_initial_login_db')) || {
     "amy_chung@brogentglobal.com": "5372858",
     "volare": "42646262"
 };
 
-// 第二層控制後台人員一對一獨立配對資料庫
 let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || { 
     "amy_chung@brogentglobal.com": "5372858", 
     "tailong-pos": "42646262" 
@@ -589,15 +575,16 @@ let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v13')) || {
     "200002149": { name: "冰箱貼-高雄景點", price: 100, initStock: 18, safetyStock: 5 }
 };
 
+// 🎯 優化 2：配合指令，將預設不扣點代碼精簡美化為「無」
 let vendorDatabase = JSON.parse(localStorage.getItem('volare_vendor_db_v1')) || {
-    "--": "不扣點/非會員",
+    "--": "無",
     "VIP888": "漢來海港大飯店",
     "BROGENT": "智崴集團員工"
 };
 
 let systemStorage = {};
 let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null; let confirmCallback = null;
-let rangeQueryStart = ""; let rangeQueryEnd = "";
+let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
 
 const todayStr = new Date().toISOString().split('T')[0];
 document.getElementById('currentDate').value = todayStr;
@@ -624,6 +611,7 @@ function calculateRealExperienceCount(type, qty) {
     return qty; 
 }
 
+// 登入狀態控制
 function toggleLoginButtonState(disable, text) {
     let btn = document.getElementById('btnLoginAction');
     if (btn) { btn.disabled = disable; btn.innerText = text; btn.style.background = disable ? "#95a5a6" : "var(--primary-color)"; }
@@ -768,7 +756,7 @@ function unpackCloudConfig(cfg) {
     localStorage.setItem('volare_vendor_db_v1', JSON.stringify(vendorDatabase));
 }
 
-function onMasterDateChange() { pullFromCloud(); }
+function onMasterDateChange() { loadDateData(); } // 🎯 優化 3：日期切換時立刻聯動刷新畫面與統計頁籤數據
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
@@ -794,7 +782,8 @@ function initStaticDropdowns() {
     const tVendSelect = document.getElementById('ticketMemberId'); tVendSelect.innerHTML = '';
     const gVendSelect = document.getElementById('goodsMemberId'); gVendSelect.innerHTML = '';
     for(let vId in vendorDatabase) {
-        let optionHtml = `<option value="${vId}">${vId} [${vendorDatabase[vId]}]</option>`;
+        let textToShow = (vId === "--") ? "無" : `${vId} [${vendorDatabase[vId]}]`; // 🎯 優化 2
+        let optionHtml = `<option value="${vId}">${textToShow}</option>`;
         tVendSelect.innerHTML += optionHtml; gVendSelect.innerHTML += optionHtml;
     }
     syncTicketPrice(); syncGoodsPrice();
@@ -923,8 +912,6 @@ function verifyBackendPassword() {
 
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
-    
-    // 🎯 ✅【人事最高防線死鎖】：大門帳密維護、員工清冊只對最高權限 amy_chung 解鎖！
     if(currentOperatorName === 'amy_chung@brogentglobal.com') { 
         document.getElementById('masterClearDataZone').style.display = 'block';
         document.getElementById('bTabMasterUsers').style.display = 'inline-block';
@@ -1014,7 +1001,10 @@ function renderBackendLists() {
     for(let barcode in goodsDatabase) { gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div>`; }
 
     let vList = document.getElementById('backendVendorList'); vList.innerHTML = '<h4>現有合作櫃位/廠商資料庫名冊</h4>';
-    for(let vId in vendorDatabase) { vList.innerHTML += `<div class="backend-list-item"><span><strong>[${vId}]</strong> ${vendorDatabase[vId]}</span><button class="btn-sm btn-accent" onclick="deleteVendor('${vId}')">🗑️ 刪除</button></div>`; }
+    for(let vId in vendorDatabase) {
+        let labelName = (vId === "--") ? "無" : vendorDatabase[vId];
+        vList.innerHTML += `<div class="backend-list-item"><span><strong>[${vId}]</strong> ${labelName}</span><button class="btn-sm btn-accent" onclick="deleteVendor('${vId}')">🗑️ 刪除</button></div>`;
+    }
 }
 function submitNewProgram() { let val = document.getElementById('newProgName').value.trim(); if(val) { programList.push(val); pushLog(`新增影片: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); } }
 function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); pushLog(`刪除影片: ${old}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
@@ -1034,31 +1024,6 @@ function submitNewGoods() {
     } else { showMsg('【提醒】', "請填寫完整欄位！"); }
 }
 function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
-
-function openEditModal(type, id, itemDate) {
-    currentEditTarget = { type: type, id: id, date: itemDate }; let body = document.getElementById('modalFormBody'); body.innerHTML = '';
-    if (type === 'Ticket') {
-        let rec = systemStorage[itemDate].tickets.find(t => t.id === id);
-        body.innerHTML = `<div class="form-group"><label>項目名稱：</label><input type="text" value="${rec.program} - ${rec.type} (${itemDate})" disabled style="background:#eee;"></div><div class="form-group"><label>修正後張數：</label><input type="number" id="modTicketQty" value="${rec.qty}"></div><div class="form-group"><label>修正後單價 ($)：</label><input type="number" id="modTicketPrice" value="${rec.price}"></div><div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div><div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>`;
-    } else {
-        let rec = systemStorage[itemDate].goods.find(g => g.id === id);
-        body.innerHTML = `<div class="form-group"><label>商品名稱：</label><input type="text" value="${rec.name} (${itemDate})" disabled style="background:#eee;"></div><div class="form-group"><label>修正後數量：</label><input type="number" id="modGoodsQty" value="${rec.qty}"></div><div class="form-group"><label>修正後折扣：</label><input type="number" id="modGoodsDiscount" value="${rec.discount}" step="0.01"></div><div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div><div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>`;
-    }
-    document.getElementById('auditModal').style.display = 'block';
-}
-function closeModal(id) { document.getElementById(id).style.display = 'none'; currentEditTarget = null; }
-function submitModalEdit() {
-    let t = currentEditTarget; let user = document.getElementById('modUser').value.trim(); let reason = document.getElementById('modReason').value.trim();
-    if(!user || !reason) { showMsg('【提醒】', "填寫人與理由為必填！"); return; }
-    if (t.type === 'Ticket') {
-        let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id); rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value);
-        rec.amount = rec.qty * rec.price; rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
-    } else {
-        let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value);
-        rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() };
-    }
-    closeModal('auditModal'); saveAndRender();
-}
 
 function switchView(view) {
     currentView = view; const views = ['Day', 'Summary', 'Session', 'Stock', 'Month'];
@@ -1094,13 +1059,22 @@ function loadDateData() {
         }
     }
     document.getElementById('dayTicketSum').innerText = `$ ${tSum.toLocaleString()} (${tPeople} 人次)`; document.getElementById('dayGoodsSum').innerText = `$ ${gSum.toLocaleString()}`; document.getElementById('dayTotalSum').innerText = `$ ${(tSum + gSum).toLocaleString()}`;
-    let repTStr = [], repPStr = [], repGStr = [];
-    for (let k in rTicketTypeMap) repTStr.push(`【${k}: ${rTicketTypeMap[k]}張】`);
-    for (let k in rProgramPeopleMap) repPStr.push(`【${k}: ${rProgramPeopleMap[k]}人次】`);
-    for (let k in rGoodsMap) repGStr.push(`【${k}: ${rGoodsMap[k]}個】`);
-    document.getElementById('repTicketTypeSums').innerHTML = repTStr.length > 0 ? repTStr.join(' ') : "暫無銷售紀錄";
-    document.getElementById('repProgramPeopleSums').innerHTML = repPStr.length > 0 ? repPStr.join(' ') : "暫無開場紀錄";
-    document.getElementById('repGoodsSums').innerHTML = repGStr.length > 0 ? repGStr.join(' ') : "暫無銷售紀錄";
+
+    // 📊 當日數據匯總表格動態生成
+    let sumTBody = document.getElementById('sumTicketTableBody'); sumTBody.innerHTML = '';
+    for(let k in rTicketTypeMap) sumTBody.innerHTML += `<tr><td><strong>${k}</strong></td><td><span style='color:var(--primary-color); font-weight:bold;'>${rTicketTypeMap[k]} 張</span></td></tr>`;
+    if(Object.keys(rTicketTypeMap).length === 0) sumTBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無票券銷售</td></tr>';
+
+    let sumGBody = document.getElementById('sumGoodsTableBody'); sumGBody.innerHTML = '';
+    for(let k in rGoodsMap) sumGBody.innerHTML += `<tr><td><strong>${k}</strong></td><td><span style='color:var(--success-color); font-weight:bold;'>${rGoodsMap[k]} 個</span></td></tr>`;
+    if(Object.keys(rGoodsMap).length === 0) sumGBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無周邊銷售</td></tr>';
+
+    let sumFBody = document.getElementById('sumFilmTableBody'); sumFBody.innerHTML = '';
+    for(let k in rProgramPeopleMap) {
+        let isKart = k.includes("賽車");
+        sumFBody.innerHTML += `<tr ${isKart ? 'style="background:#fffbeb;"':''}><td><strong>${k}</strong></td><td><span style='color:${isKart ? '#b45309':'#2b6cb0'}; font-weight:bold;'>${rProgramPeopleMap[k]} 人次</span></td></tr>`;
+    }
+    if(Object.keys(rProgramPeopleMap).length === 0) sumFBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無影片載客明細</td></tr>';
 
     if (currentView === 'Day') {
         let ticketBody = document.getElementById('ticketTableBody'); let goodsBody = document.getElementById('goodsTableBody'); ticketBody.innerHTML = ''; goodsBody.innerHTML = '';
@@ -1109,7 +1083,7 @@ function loadDateData() {
                 systemStorage[date].tickets.forEach(item => {
                     let peopleCount = calculateTicketPeople(item.type, item.qty);
                     let clockHtml = item.timestamp ? `<span style="color:#7f8c8d; font-family:monospace;">[${item.timestamp}]</span>` : `<span style="color:#cbd5e0;">--</span>`;
-                    let vendorName = vendorDatabase[item.memberId] ? `${item.memberId} [${vendorDatabase[item.memberId]}]` : item.memberId || "--";
+                    let vendorName = (item.memberId === "--" || !vendorDatabase[item.memberId]) ? "無" : `${item.memberId} [${vendorDatabase[item.memberId]}]`; // 🎯 優化 2
                     let auditLogHtml = item.audit ? `<tr><td colspan="10"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
                     ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${clockHtml}</td><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td style="color:#2b6cb0; font-weight:bold;">${vendorName}</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改</button></td></tr>${auditLogHtml}`;
                 });
@@ -1118,7 +1092,7 @@ function loadDateData() {
                 systemStorage[date].goods.forEach(item => {
                     let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0; 
                     let clockHtml = item.timestamp ? `<span style="color:#7f8c8d; font-family:monospace;">[${item.timestamp}]</span>` : `<span style="color:#cbd5e0;">--</span>`;
-                    let vendorName = vendorDatabase[item.memberId] ? `${item.memberId} [${vendorDatabase[item.memberId]}]` : item.memberId || "--";
+                    let vendorName = (item.memberId === "--" || !vendorDatabase[item.memberId]) ? "無" : `${item.memberId} [${vendorDatabase[item.memberId]}]`; // 🎯 優化 2
                     let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (人:${item.discountAuthUser})` : '--';
                     let auditLogHtml = item.audit ? `<tr><td colspan="11"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
                     goodsBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${clockHtml}</td><td>${item.barcode}</td><td>${item.name}</td><td>${item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>":"<span style='color:green;'>🟢 進貨</span>"}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#2b6cb0; font-weight:bold;">${vendorName}</td><td style="color:#8a6d3b; font-size:11px;">${authText}</td><td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${date}')">✍️ 修改</button></td></tr>${auditLogHtml}`;
@@ -1173,7 +1147,7 @@ function exportRangeData() {
     let allDates = Object.keys(systemStorage).sort();
     allDates.forEach(d => {
         if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) {
-            systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.memberId || '--'},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; });
+            systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.memberId === '--'?'無':x.memberId},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; });
         }
     });
     csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,輸入時間,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,會員編號/廠商代碼,特殊折扣說明與填寫人,內部審計改單簽核\n";
@@ -1181,7 +1155,7 @@ function exportRangeData() {
         if(d >= start && d <= end && systemStorage[d] && systemStorage[d].goods) {
             systemStorage[d].goods.forEach(g => {
                 let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0;
-                csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId || '--'},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`;
+                csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId === '--'?'無':g.memberId},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`;
             });
         }
     });
