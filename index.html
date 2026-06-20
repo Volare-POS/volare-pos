@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v35</title>
+    <title>VOLARE 智慧雲端安全營運系統 v37</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -220,20 +220,19 @@
             font-weight: bold;
             animation: pulse 2s infinite;
         }
-        @media screen and (max-width: 850px) {
-            body { padding: 10px; }
-            header { flex-direction: column; align-items: stretch; padding: 15px; }
-            header div { width: 100%; text-align: center; }
-            header button { width: 100%; }
-            .dashboard-grid { flex-direction: column; gap: 15px; }
-            .left-panel { width: 100%; position: relative; top: 0; max-height: none; }
-            .right-panel { width: 100%; }
-            .summary-boxes { grid-template-columns: 1fr; gap: 10px; }
-            .box .value { font-size: 20px; }
-            .modal-content { width: 95%; margin: 15% auto; padding: 15px; }
-            #rangeSearchZone { flex-direction: column; align-items: stretch; gap: 12px !important; }
-            #rangeSearchZone div { flex-direction: column; align-items: stretch; width: 100%; }
-            #rangeSearchZone input { width: 100% !important; }
+        @keyframes pulse {
+            0% { background-color: #ffe3e3; }
+            50% { background-color: #ffb3b3; }
+            100% { background-color: #ffe3e3; }
+        }
+        .highlight-alert-text {
+            color: #e74c3c;
+            font-weight: 900;
+            font-size: 16px;
+            background: #fdf2f2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #fbcfe8;
         }
         .report-summary-box {
             background: #f1f5f9;
@@ -243,16 +242,32 @@
             border-left: 5px solid var(--primary-color);
             font-size: 13px;
         }
-        /* 🎯 優化 1：重新部署全網頁 Modal 資安層級。確保提醒/警告強行覆蓋於後台中心最上層 */
         .modal {
             display: none;
             position: fixed;
             left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0,0,0,0.55);
         }
-        #backendModal { z-index: 1000; } /* 后台核心控制中心 */
-        #auditModal { z-index: 2000; } /* 改单審計彈窗 */
-        #globalMsgModal { z-index: 10005; } /* 🌟 終極警告通知：物理層級最高，絕對噴在最前面！ */
+        .modal-content {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            width: 620px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            max-height: 85vh;
+            overflow-y: auto;
+            box-sizing: border-box;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        #globalMsgModal .modal-content {
+            width: 480px;
+        }
+        #backendModal { z-index: 1000; } 
+        #auditModal { z-index: 2000; } 
+        #globalMsgModal { z-index: 10005; } 
     </style>
 </head>
 <body>
@@ -277,7 +292,7 @@
     <div class="modal-content" style="width: 480px; text-align: center;">
         <div class="modal-header" id="globalMsgTitle" style="border:none; padding:0; margin-bottom:10px; font-size:18px;">【提醒】</div>
         <div id="globalMsgBody" style="font-size: 15px; margin: 15px 0; line-height: 1.6; text-align: left; padding: 0 10px; white-space: pre-wrap;"></div>
-        <div class="modal-footer" style="justify-content: center;" id="globalMsgFooter"></div>
+        <div class="modal-footer" style="justify-content: center; margin-top: 20px; display: flex; gap: 10px;" id="globalMsgFooter"></div>
     </div>
 </div>
 
@@ -285,7 +300,7 @@
     <div class="modal-content">
         <div class="modal-header" style="color: var(--accent-color);">【修改說明】</div>
         <div id="modalFormBody"></div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="margin-top: 20px; display: flex; gap: 10px;">
             <button onclick="submitModalEdit()" class="btn-accent">確認修改</button>
             <button onclick="closeModal('auditModal')" style="background:#95a5a6;">取消</button>
         </div>
@@ -374,7 +389,7 @@
                 <div class="log-box" id="adminLogContainer"></div>
             </div>
         </div>
-        <div class="modal-footer"><button onclick="closeModal('backendModal')" style="background:#7f8c8d;">關閉後台</button></div>
+        <div class="modal-footer" style="margin-top: 20px; display: flex; gap: 10px;"><button onclick="closeModal('backendModal')" style="background:#7f8c8d;">關閉後台</button></div>
     </div>
 </div>
 
@@ -530,9 +545,9 @@ let defaultTicketDb = {
 let ticketTypeDatabase = JSON.parse(localStorage.getItem('volare_ticket_db_v16')) || defaultTicketDb;
 
 let defaultGoodsDb = {
-    "4710000001": { name: "長安特製香包_手繪風", price: 150, initStock: 100, safetyStock: 20 },
-    "4710000002": { name: "唐代古風長綢扇", price: 200, initStock: 150, safetyStock: 30 },
-    "4710000003": { name: "長安古風陶瓷杯", price: 350, initStock: 50, safetyStock: 10 }
+    "200002146": { name: "冰箱貼-高雄郵票", price: 100, initStock: 16, safetyStock: 5 },
+    "200002147": { name: "冰箱貼-航空信台灣", price: 100, initStock: 13, safetyStock: 5 },
+    "200002149": { name: "冰箱貼-高雄景點", price: 100, initStock: 18, safetyStock: 5 }
 };
 let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v13')) || defaultGoodsDb;
 
@@ -548,7 +563,6 @@ rangeQueryStart = todayStr; rangeQueryEnd = todayStr;
 systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 initStaticDropdowns();
 
-// 影廳座位安全閥人次換算：極速賽車算 0 人次，不鎖主影廳
 function calculateTicketPeople(type, qty) {
     if (ticketTypeDatabase[type]) {
         if (typeof ticketTypeDatabase[type] === 'object') {
@@ -560,10 +574,9 @@ function calculateTicketPeople(type, qty) {
     return qty;
 }
 
-// 🎯 優化 2：新增「業績真實回報體驗人數換算機制」。即便人次為 0（賽車），回報單也必須加總體驗人數
 function calculateRealExperienceCount(type, qty) {
     if (type.includes("雙人")) return qty * 2;
-    return qty; // 其餘票種（包含賽車、免費、親子卡）皆視為真實進店人頭，1張票 = 1位體驗者
+    return qty; 
 }
 
 function toggleLoginButtonState(disable, text) {
@@ -650,7 +663,7 @@ function pullFromCloud(forceSync = false) {
         if (isSyncing && !forceSync) return;
         if(resData && !resData.error) {
             if (resData.config) unpackCloudConfig(resData.config);
-            if (resData.sales) smartMergeSales(resData.sales);
+            if (resData.sales) smartMergeSales(resData.sales); 
             localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
         }
         setSyncIndicator('success'); loadDateData();
@@ -709,7 +722,6 @@ function triggerRangeQuery() {
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
     rangeQueryStart = s; rangeQueryEnd = e; pullFromCloud();
 }
-// 切換登記面板
 function switchForm(form) {
     document.getElementById('formTicket').style.display = form === 'Ticket' ? 'block' : 'none';
     document.getElementById('formGoods').style.display = form === 'Goods' ? 'block' : 'none';
@@ -729,6 +741,7 @@ function initStaticDropdowns() {
     syncTicketPrice(); syncGoodsPrice();
 }
 
+// 票種價格對齊大腦
 function syncTicketPrice() {
     let tName = document.getElementById('ticketType').value;
     if(ticketTypeDatabase[tName] !== undefined) {
@@ -960,12 +973,8 @@ function loadDateData() {
     if (systemStorage[date]) {
         if(systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(x => { 
-                tSum += x.amount; 
-                tPeople += calculateTicketPeople(x.type, x.qty); // 影廳座位防線計法 (賽車 = 0)
-                
-                // 🎯 優化 2「雙軌制」：計算營業加總回報時，改用體驗人頭計法 (賽車/免費票皆老實計算為實際來客人數)
+                tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); 
                 let actualExperiences = calculateRealExperienceCount(x.type, x.qty);
-                
                 rTicketTypeMap[x.type] = (rTicketTypeMap[x.type] || 0) + x.qty;
                 rProgramPeopleMap[x.program] = (rProgramPeopleMap[x.program] || 0) + actualExperiences;
             });
@@ -1088,7 +1097,6 @@ function exportRangeData() {
     link.setAttribute("download", `VOLARE_整合營運總匯報表_${start}_至_${end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
-// 🎯 全域智慧環境 Enter 攔截大腦，全面管理全頁面
 document.addEventListener('keypress', function(e) {
     if (e.key !== 'Enter') return;
     if (e.target.tagName === 'TEXTAREA') return; 
@@ -1096,7 +1104,6 @@ document.addEventListener('keypress', function(e) {
     if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') {
         preLoginSyncAndAttempt();
     } else if (document.getElementById('globalMsgModal').style.display === 'block') {
-        // 如果跳出警告提示彈窗，Enter 鍵預設等同於關閉該確認彈窗，防止同仁滑鼠點擊疲勞
         closeMsgModal();
     } else if (document.getElementById('auditModal').style.display === 'block') {
         submitModalEdit();
