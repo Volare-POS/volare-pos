@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v47</title>
+    <title>VOLARE 智慧雲端安全營運系統 v48</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -300,28 +300,51 @@
             width: 100%;
             box-sizing: border-box;
         }
-        .summary-mini-table {
+        .summary-list {
             width: 100%;
             max-width: 100%;
             margin-top: 5px;
-            border-collapse: collapse;
-            table-layout: auto;
-        }
-        .summary-mini-table th, .summary-mini-table td {
-            padding: 8px 10px;
-            font-size: 13px;
+            box-sizing: border-box;
             border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .summary-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #edf2f7;
+            color: #4a5568;
+            font-size: 13px;
+            font-weight: bold;
+            gap: 12px;
+        }
+        .summary-list-header .item-name { flex: 1; min-width: 0; }
+        .summary-list-header .item-value { flex-shrink: 0; }
+        .summary-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 13px;
+            gap: 12px;
+        }
+        .summary-list-item .item-name {
+            flex: 1;
+            min-width: 0;
             word-break: break-word;
-            white-space: normal;
-            overflow-wrap: break-word;
         }
-        .summary-mini-table th { background: #edf2f7; color: #4a5568; }
-        .summary-mini-table th:nth-child(1), .summary-mini-table td:nth-child(1) {
-            width: auto;
-        }
-        .summary-mini-table th:nth-child(2), .summary-mini-table td:nth-child(2) {
-            width: 1%;
+        .summary-list-item .item-value {
+            flex-shrink: 0;
+            font-weight: bold;
             white-space: nowrap;
+        }
+        .summary-list-empty {
+            padding: 12px;
+            color: #aaa;
+            font-size: 13px;
             text-align: center;
         }
 
@@ -593,16 +616,25 @@
                     <div class="summary-report-grid">
                         <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
                             <h4 style="margin:0 0 8px 0; color:var(--primary-color);">🎫 各票種累計銷售張數</h4>
-                            <table class="summary-mini-table"><thead><tr><th>票券名稱</th><th>已售總張數</th></tr></thead><tbody id="sumTicketTableBody"></tbody></table>
+                            <div class="summary-list">
+                                <div class="summary-list-header"><span class="item-name">票券名稱</span><span class="item-value">已售總張數</span></div>
+                                <div id="sumTicketTableBody"></div>
+                            </div>
                         </div>
                         <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
                             <h4 style="margin:0 0 8px 0; color:var(--success-color);">🛍️ 各周邊商品累積銷售量</h4>
-                            <table class="summary-mini-table"><thead><tr><th>商品品名</th><th>已售總數量</th></tr></thead><tbody id="sumGoodsTableBody"></tbody></table>
+                            <div class="summary-list">
+                                <div class="summary-list-header"><span class="item-name">商品品名</span><span class="item-value">已售總數量</span></div>
+                                <div id="sumGoodsTableBody"></div>
+                            </div>
                         </div>
                     </div>
                     <div style="margin-top: 20px; width: 100%; background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
                         <h4 style="margin:0 0 8px 0; color:#2b6cb0;">🎬 各影片主題累積體驗人數 (載客總人頭)</h4>
-                        <div class="table-responsive"><table class="summary-mini-table"><thead><tr><th>播映影片項目</th><th>總體驗人數</th></tr></thead><tbody id="sumFilmTableBody"></tbody></table></div>
+                        <div class="summary-list">
+                            <div class="summary-list-header"><span class="item-name">播映影片項目</span><span class="item-value">總體驗人數</span></div>
+                            <div id="sumFilmTableBody"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1084,17 +1116,17 @@ function loadDateData() {
     let sumTBody = document.getElementById('sumTicketTableBody'); sumTBody.innerHTML = '';
     for(let k in rTicketTypeMap) {
         let numToShow = rTicketTypeMap[k]; if (k === "一般雙片票") { numToShow = Math.round(numToShow / 2); }
-        sumTBody.innerHTML += `<tr><td><strong>${k}</strong></td><td><span style='color:var(--primary-color); font-weight:bold;'>${numToShow} 張</span></td></tr>`;
+        sumTBody.innerHTML += `<div class="summary-list-item"><span class="item-name">${k}</span><span class="item-value" style="color:var(--primary-color);">${numToShow} 張</span></div>`;
     }
-    if(Object.keys(rTicketTypeMap).length === 0) sumTBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無票券銷售</td></tr>';
+    if(Object.keys(rTicketTypeMap).length === 0) sumTBody.innerHTML = '<div class="summary-list-empty">今日尚無票券銷售</div>';
 
     let sumGBody = document.getElementById('sumGoodsTableBody'); sumGBody.innerHTML = '';
-    for(let k in rGoodsMap) sumGBody.innerHTML += `<tr><td><strong>${k}</strong></td><td><span style='color:var(--success-color); font-weight:bold;'>${rGoodsMap[k]} 個</span></td></tr>`;
-    if(Object.keys(rGoodsMap).length === 0) sumGBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無周邊銷售</td></tr>';
+    for(let k in rGoodsMap) sumGBody.innerHTML += `<div class="summary-list-item"><span class="item-name">${k}</span><span class="item-value" style="color:var(--success-color);">${rGoodsMap[k]} 個</span></div>`;
+    if(Object.keys(rGoodsMap).length === 0) sumGBody.innerHTML = '<div class="summary-list-empty">今日尚無周邊銷售</div>';
 
     let sumFBody = document.getElementById('sumFilmTableBody'); sumFBody.innerHTML = '';
-    for(let k in rProgramPeopleMap) { let isKart = k.includes("賽車"); sumFBody.innerHTML += `<tr ${isKart ? 'style="background:#fffbeb;"':''}><td><strong>${k}</strong></td><td><span style='color:${isKart ? '#b45309':'#2b6cb0'}; font-weight:bold;'>${rProgramPeopleMap[k]} 人次</span></td></tr>`; }
-    if(Object.keys(rProgramPeopleMap).length === 0) sumFBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無影片載客明細</td></tr>';
+    for(let k in rProgramPeopleMap) { let isKart = k.includes("賽車"); sumFBody.innerHTML += `<div class="summary-list-item" ${isKart ? 'style="background:#fffbeb;"':''}><span class="item-name">${k}</span><span class="item-value" style="color:${isKart ? '#b45309':'#2b6cb0'};">${rProgramPeopleMap[k]} 人次</span></div>`; }
+    if(Object.keys(rProgramPeopleMap).length === 0) sumFBody.innerHTML = '<div class="summary-list-empty">今日尚無影片載客明細</div>';
 
     if (currentView === 'Day') {
         let ticketBody = document.getElementById('ticketTableBody'); let goodsBody = document.getElementById('goodsTableBody'); ticketBody.innerHTML = ''; goodsBody.innerHTML = '';
