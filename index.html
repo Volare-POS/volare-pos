@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v53</title>
+    <title>VOLARE 智慧雲端安全營運系統 v54</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -402,6 +402,20 @@
     </div>
 </div>
 
+<div id="changeMyPasswordModal" class="modal">
+    <div class="modal-content" style="width: 420px;">
+        <div class="modal-header">🔑 修改我的登入密碼</div>
+        <div class="form-group"><label>目前帳號：</label><input type="text" id="cmpAccountDisplay" disabled style="background:#eee;"></div>
+        <div class="form-group"><label>舊密碼：</label><input type="password" id="cmpOldPass" placeholder=""></div>
+        <div class="form-group"><label>新密碼：</label><input type="password" id="cmpNewPass" placeholder=""></div>
+        <div class="form-group"><label>再次輸入新密碼：</label><input type="password" id="cmpNewPassConfirm" placeholder=""></div>
+        <div class="modal-footer" style="margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="submitChangeMyPassword()" style="background:var(--success-color);">確認修改</button>
+            <button onclick="closeModal('changeMyPasswordModal')" style="background:#95a5a6;">取消</button>
+        </div>
+    </div>
+</div>
+
 <div id="backendModal" class="modal">
     <div class="modal-content" style="width: 720px;">
         <div class="modal-header">⚙️ VOLARE 營運後台核心設定中心</div>
@@ -527,6 +541,7 @@
             </div>
         </div>
         <button onclick="openBackendModal()" style="background:#7f8c8d; width:auto; padding:8px 15px; font-size:13px; border-radius:4px;">⚙️ 後台設定</button>
+        <button onclick="openChangeMyPasswordModal()" style="background:#34495e; width:auto; padding:8px 15px; font-size:13px; border-radius:4px;">🔑 修改我的密碼</button>
     </header>
 
     <div class="summary-boxes">
@@ -857,6 +872,31 @@ function triggerRangeQuery() {
 }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; currentEditTarget = null; }
 
+// 🎯 員工自行修改登入密碼（僅限第一層網頁大門帳號，需驗證舊密碼才能更換）
+function openChangeMyPasswordModal() {
+    if (!currentOperatorName) { showMsg('【提醒】', "請先登入系統再修改密碼！"); return; }
+    document.getElementById('cmpAccountDisplay').value = currentOperatorName;
+    document.getElementById('cmpOldPass').value = '';
+    document.getElementById('cmpNewPass').value = '';
+    document.getElementById('cmpNewPassConfirm').value = '';
+    document.getElementById('changeMyPasswordModal').style.display = 'block';
+}
+
+function submitChangeMyPassword() {
+    let oldPass = document.getElementById('cmpOldPass').value;
+    let newPass = document.getElementById('cmpNewPass').value;
+    let newPassConfirm = document.getElementById('cmpNewPassConfirm').value;
+    if (!oldPass || !newPass || !newPassConfirm) { showMsg('【提醒】', "所有欄位皆為必填！"); return; }
+    if (initialLoginDatabase[currentOperatorName] !== oldPass) { showMsg('【提醒】', "舊密碼輸入不正確，請重新輸入！"); return; }
+    if (newPass !== newPassConfirm) { showMsg('【提醒】', "兩次輸入的新密碼不一致，請重新輸入！"); return; }
+    if (newPass === oldPass) { showMsg('【提醒】', "新密碼不可與舊密碼相同！"); return; }
+    initialLoginDatabase[currentOperatorName] = newPass;
+    pushLog(`帳號 ${currentOperatorName} 自行修改了登入密碼`);
+    closeModal('changeMyPasswordModal');
+    saveAndRender();
+    showMsg('【提醒】', `🔑 密碼修改成功！\n下次登入請使用新密碼。`);
+}
+
 function initStaticDropdowns() {
     const hourSelect = document.getElementById('timeHour'); hourSelect.innerHTML = '';
     for(let i=10; i<=23; i++) { let hStr = i < 10 ? '0' + i : i; hourSelect.innerHTML += `<option value="${hStr}">${hStr} 點</option>`; }
@@ -1050,12 +1090,29 @@ function deleteStaffAccountByAcc(acc) {
 
 function renderStaffList() {
     let container = document.getElementById('backendStaffList'); if(!container) return; container.innerHTML = '';
-    for(let acc in staffDatabase) { container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong></span><button class="btn-sm btn-accent btn-del-staff" data-acc="${acc}">註銷</button></div>`; }
+    for(let acc in staffDatabase) {
+        container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> <span style="color:#999;">密碼：</span><span class="pw-mask" data-real="${staffDatabase[acc]}">••••••</span></span><div><button class="btn-sm btn-eye" style="background:#5a6577; width:auto; padding:4px 8px; margin-right:4px;" onclick="togglePasswordVisible(this)">👁️</button><button class="btn-sm btn-accent btn-del-staff" data-acc="${acc}">註銷</button></div></div>`;
+    }
     document.querySelectorAll('.btn-del-staff').forEach(btn => { btn.onclick = function() { deleteStaffAccountByAcc(this.getAttribute('data-acc')); }; });
 
     let masterGateList = document.getElementById('backendInitialLoginList'); if(!masterGateList) return; masterGateList.innerHTML = '';
-    for(let acc in initialLoginDatabase) { masterGateList.innerHTML += `<div class="backend-list-item"><span><span>🔑 帳號：</span><strong>${acc}</strong></span><button class="btn-sm btn-accent btn-del-gate" data-acc="${acc}">註銷</button></div>`; }
+    for(let acc in initialLoginDatabase) {
+        masterGateList.innerHTML += `<div class="backend-list-item"><span><span>🔑 帳號：</span><strong>${acc}</strong> <span style="color:#999;">密碼：</span><span class="pw-mask" data-real="${initialLoginDatabase[acc]}">••••••</span></span><div><button class="btn-sm btn-eye" style="background:#5a6577; width:auto; padding:4px 8px; margin-right:4px;" onclick="togglePasswordVisible(this)">👁️</button><button class="btn-sm btn-accent btn-del-gate" data-acc="${acc}">註銷</button></div></div>`;
+    }
     document.querySelectorAll('.btn-del-gate').forEach(btn => { btn.onclick = function() { deleteMasterGateByAcc(this.getAttribute('data-acc')); }; });
+}
+
+// 🎯 密碼顯示/隱藏切換（僅最高權限後台名冊可見，且需手動點擊才會顯示，降低誤觸外流風險）
+function togglePasswordVisible(btnEl) {
+    let pwSpan = btnEl.parentElement.previousElementSibling.querySelector('.pw-mask');
+    if (!pwSpan) return;
+    if (pwSpan.innerText === '••••••') {
+        pwSpan.innerText = pwSpan.getAttribute('data-real');
+        btnEl.innerText = '🙈';
+    } else {
+        pwSpan.innerText = '••••••';
+        btnEl.innerText = '👁️';
+    }
 }
 
 function moveProgramOrder(idx, direction) {
@@ -1263,7 +1320,7 @@ function exportRangeData() {
 
 document.addEventListener('keypress', function(e) {
     if (e.key !== 'Enter') return; if (e.target.tagName === 'TEXTAREA') return; 
-    if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') { preLoginSyncAndAttempt(); } else if (document.getElementById('globalMsgModal').style.display === 'block') { closeMsgModal(); } else if (document.getElementById('auditModal').style.display === 'block') { submitModalEdit(); } else if (document.getElementById('backendModal').style.display === 'block') {
+    if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') { preLoginSyncAndAttempt(); } else if (document.getElementById('globalMsgModal').style.display === 'block') { closeMsgModal(); } else if (document.getElementById('auditModal').style.display === 'block') { submitModalEdit(); } else if (document.getElementById('changeMyPasswordModal').style.display === 'block') { submitChangeMyPassword(); } else if (document.getElementById('backendModal').style.display === 'block') {
         if (document.getElementById('backendAuthZone').style.display !== 'none') { verifyBackendPassword(); } else if (currentBackendTab === 'Prog') submitNewProgram(); else if (currentBackendTab === 'Ticket') submitNewTicket(); else if (currentBackendTab === 'Goods') submitNewGoods(); else if (currentBackendTab === 'Vend') submitNewVendor(); else if (currentBackendTab === 'MasterUsers') submitMasterGateAccount(); else if (currentBackendTab === 'Users') submitNewStaffAccount();
     } else if (document.getElementById('formTicket').style.display !== 'none') { addTicketSale(); } else if (document.getElementById('formGoods').style.display !== 'none') { addGoodsSale(); }
 });
