@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v52</title>
+    <title>VOLARE 智慧雲端安全營運系統 v53</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -436,7 +436,8 @@
                 <div class="form-group">
                     <div class="form-row" style="margin-bottom:5px;">
                         <input type="text" id="newTicketName" placeholder="請輸入票種名稱" style="flex:2;">
-                        <input type="number" id="newTicketPriceDefault" placeholder="預設單價" style="flex:1;">
+                        <input type="number" id="newTicketPriceWeekday" placeholder="平日價" style="flex:1;">
+                        <input type="number" id="newTicketPriceHoliday" placeholder="假日價" style="flex:1;">
                         <input type="number" id="newTicketSeatsDefault" placeholder="人次計算" min="0" step="0.5" style="flex:1;">
                     </div>
                     <button onclick="submitNewTicket()" style="background:var(--success-color);">建立或覆蓋票種基本檔</button>
@@ -519,6 +520,11 @@
             <button onclick="pullFromCloud(true)" style="background:var(--warning-color); width:95px; padding:6px; font-size:13px; font-weight:bold; border-radius:4px; white-space:nowrap; cursor:pointer;">🔄 同步更新</button>
             <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">📅 日期：</label>
             <input type="date" id="currentDate" style="width: 145px; padding: 5px; border:none;" onchange="onMasterDateChange()">
+            <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">💰 票價：</label>
+            <div style="display:flex; border-radius:4px; overflow:hidden; border:1px solid rgba(255,255,255,0.4);">
+                <button type="button" id="btnPriceModeWeekday" onclick="setPriceMode('weekday')" style="width:auto; padding:6px 14px; font-size:13px; border-radius:0; background:var(--success-color);">平日</button>
+                <button type="button" id="btnPriceModeHoliday" onclick="setPriceMode('holiday')" style="width:auto; padding:6px 14px; font-size:13px; border-radius:0; background:#5a6577;">假日</button>
+            </div>
         </div>
         <button onclick="openBackendModal()" style="background:#7f8c8d; width:auto; padding:8px 15px; font-size:13px; border-radius:4px;">⚙️ 後台設定</button>
     </header>
@@ -676,10 +682,10 @@ let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || {
 };
 
 let ticketTypeDatabase = JSON.parse(localStorage.getItem('volare_ticket_db_v16')) || {
-    "一般單片票": {price: 249, seats: 1}, "一般雙片票": {price: 398, seats: 0.5}, "單片X折票": {price: 350, seats: 1}, "動漫X折票": {price: 0, seats: 1},
-    "動漫單人票": {price: 399, seats: 1}, "動漫雙人票": {price: 698, seats: 2}, "企業優惠票": {price: 220, seats: 1}, "集團優惠票": {price: 120, seats: 1},
-    "親子卡": {price: 0, seats: 1}, "員工票": {price: 0, seats: 1}, "貴賓票": {price: 0, seats: 1}, "平台票": {price: 0, seats: 1}, "免費票": {price: 0, seats: 1},
-    "團體優惠單單片": {price: 200, seats: 1}, "團體優惠雙片": {price: 349, seats: 1}, "極速賽車": {price: 150, seats: 0}, "極速賽車加購": {price: 99, seats: 0}, "極速賽車免費": {price: 0, seats: 0}
+    "一般單片票": {priceWeekday: 249, priceHoliday: 249, seats: 1}, "一般雙片票": {priceWeekday: 398, priceHoliday: 398, seats: 0.5}, "單片X折票": {priceWeekday: 350, priceHoliday: 350, seats: 1}, "動漫X折票": {priceWeekday: 0, priceHoliday: 0, seats: 1},
+    "動漫單人票": {priceWeekday: 399, priceHoliday: 399, seats: 1}, "動漫雙人票": {priceWeekday: 698, priceHoliday: 698, seats: 1}, "企業優惠票": {priceWeekday: 220, priceHoliday: 220, seats: 1}, "集團優惠票": {priceWeekday: 120, priceHoliday: 120, seats: 1},
+    "親子卡": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "員工票": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "貴賓票": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "平台票": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "免費票": {priceWeekday: 0, priceHoliday: 0, seats: 1},
+    "團體優惠單單片": {priceWeekday: 200, priceHoliday: 200, seats: 1}, "團體優惠雙片": {priceWeekday: 349, priceHoliday: 349, seats: 1}, "極速賽車": {priceWeekday: 150, priceHoliday: 150, seats: 0}, "極速賽車加購": {priceWeekday: 99, priceHoliday: 99, seats: 0}, "極速賽車免費": {priceWeekday: 0, priceHoliday: 0, seats: 0}
 };
 
 let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v13')) || {
@@ -697,6 +703,7 @@ let vendorDatabase = JSON.parse(localStorage.getItem('volare_vendor_db_v1')) || 
 let systemStorage = {};
 let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null;
 let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
+let currentPriceMode = localStorage.getItem('volare_price_mode') || 'weekday'; // 🎯 平日/假日票價手動切換模式
 
 function getLocalDateString(d) {
     let year = d.getFullYear();
@@ -866,12 +873,38 @@ function initStaticDropdowns() {
         let textToShow = (vId === "--") ? "無" : `${vId} [${vendorDatabase[vId]}]`;
         let optionHtml = `<option value="${vId}">${textToShow}</option>`; tVendSelect.innerHTML += optionHtml; gVendSelect.innerHTML += optionHtml;
     }
-    syncTicketPrice(); syncGoodsPrice();
+    syncTicketPrice(); syncGoodsPrice(); renderPriceModeButtons();
 }
 
 function syncTicketPrice() {
     let tName = document.getElementById('ticketType').value;
-    if(ticketTypeDatabase[tName] !== undefined) { let p = typeof ticketTypeDatabase[tName] === 'object' ? ticketTypeDatabase[tName].price : ticketTypeDatabase[tName]; document.getElementById('ticketPrice').value = p; }
+    let item = ticketTypeDatabase[tName];
+    if(item === undefined) return;
+    let p;
+    if (typeof item === 'object') {
+        if (item.priceWeekday !== undefined || item.priceHoliday !== undefined) {
+            p = (currentPriceMode === 'holiday') ? (item.priceHoliday !== undefined ? item.priceHoliday : item.priceWeekday) : (item.priceWeekday !== undefined ? item.priceWeekday : item.priceHoliday);
+        } else {
+            p = item.price; // 相容舊資料尚未設定平假日價的票種
+        }
+    } else {
+        p = item; // 相容更舊版的純數字票價結構
+    }
+    document.getElementById('ticketPrice').value = p;
+}
+
+function setPriceMode(mode) {
+    currentPriceMode = mode;
+    localStorage.setItem('volare_price_mode', mode);
+    renderPriceModeButtons();
+    syncTicketPrice();
+}
+
+function renderPriceModeButtons() {
+    let btnW = document.getElementById('btnPriceModeWeekday'); let btnH = document.getElementById('btnPriceModeHoliday');
+    if (!btnW || !btnH) return;
+    btnW.style.background = (currentPriceMode === 'weekday') ? 'var(--success-color)' : '#5a6577';
+    btnH.style.background = (currentPriceMode === 'holiday') ? 'var(--accent-color)' : '#5a6577';
 }
 function syncGoodsPrice() {
     let barcode = document.getElementById('goodsType').value;
@@ -1047,9 +1080,17 @@ function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1
 
 // ===== 票種維護（先前版本缺失，現補回） =====
 function submitNewTicket() {
-    let val = document.getElementById('newTicketName').value.trim(); let defaultPrice = parseInt(document.getElementById('newTicketPriceDefault').value) || 0;
+    let val = document.getElementById('newTicketName').value.trim();
+    let priceWeekday = parseInt(document.getElementById('newTicketPriceWeekday').value) || 0;
+    let priceHolidayInput = document.getElementById('newTicketPriceHoliday').value;
+    let priceHoliday = priceHolidayInput.trim() === '' ? priceWeekday : (parseInt(priceHolidayInput) || 0);
     let defaultSeats = parseFloat(document.getElementById('newTicketSeatsDefault').value); if (isNaN(defaultSeats)) defaultSeats = 1;
-    if(val) { ticketTypeDatabase[val] = {price: defaultPrice, seats: defaultSeats}; pushLog(`變更票種: ${val} ($${defaultPrice} / ${defaultSeats}人次)`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; document.getElementById('newTicketSeatsDefault').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+    if(val) {
+        ticketTypeDatabase[val] = {priceWeekday: priceWeekday, priceHoliday: priceHoliday, seats: defaultSeats};
+        pushLog(`變更票種: ${val} (平日$${priceWeekday} / 假日$${priceHoliday} / ${defaultSeats}人次)`);
+        document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceWeekday').value = ''; document.getElementById('newTicketPriceHoliday').value = ''; document.getElementById('newTicketSeatsDefault').value = '';
+        renderBackendLists(); initStaticDropdowns(); saveAndRender();
+    }
     else { showMsg('【提醒】', "請輸入票種名稱！"); }
 }
 function deleteTicket(tName) { delete ticketTypeDatabase[tName]; pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
@@ -1076,11 +1117,19 @@ function renderBackendLists() {
     
     let tList = document.getElementById('backendTicketList'); tList.innerHTML = ''; let tKeys = Object.keys(ticketTypeDatabase);
     tKeys.forEach((tName, idx) => { 
-        let seats = typeof ticketTypeDatabase[tName] === 'object' ? (ticketTypeDatabase[tName].seats !== undefined ? ticketTypeDatabase[tName].seats : 1) : 1;
-        let price = typeof ticketTypeDatabase[tName] === 'object' ? (ticketTypeDatabase[tName].price || 0) : ticketTypeDatabase[tName];
+        let item = ticketTypeDatabase[tName];
+        let seats = typeof item === 'object' ? (item.seats !== undefined ? item.seats : 1) : 1;
+        let priceLabel;
+        if (typeof item === 'object' && (item.priceWeekday !== undefined || item.priceHoliday !== undefined)) {
+            let pw = item.priceWeekday !== undefined ? item.priceWeekday : item.priceHoliday;
+            let ph = item.priceHoliday !== undefined ? item.priceHoliday : item.priceWeekday;
+            priceLabel = (pw === ph) ? `$${pw}` : `平$${pw} / 假$${ph}`;
+        } else {
+            priceLabel = `$${typeof item === 'object' ? (item.price || 0) : item}`;
+        }
         let moveUpBtn = idx > 0 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveTicketOrder('${tName}', -1)">⬆️</button>` : '';
         let moveDownBtn = idx < tKeys.length - 1 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveTicketOrder('${tName}', 1)">⬇️</button>` : '';
-        tList.innerHTML += `<div class="backend-list-item"><span>${tName} ($${price} / 計 ${seats}人)</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div></div>`; 
+        tList.innerHTML += `<div class="backend-list-item"><span>${tName} (${priceLabel} / 計 ${seats}人)</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div></div>`; 
     });
     
     let gList = document.getElementById('backendGoodsList'); gList.innerHTML = '<h4>現有周邊品項清單</h4>';
