@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v32</title>
+    <title>VOLARE 智慧雲端安全營運系統 v35</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -220,84 +220,6 @@
             font-weight: bold;
             animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0% { background-color: #ffe3e3; }
-            50% { background-color: #ffb3b3; }
-            100% { background-color: #ffe3e3; }
-        }
-        .highlight-alert-text {
-            color: #e74c3c;
-            font-weight: 900;
-            font-size: 16px;
-            background: #fdf2f2;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #fbcfe8;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        .modal-content {
-            background-color: #fff;
-            margin: 5% auto;
-            padding: 25px;
-            border-radius: 8px;
-            width: 620px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            max-height: 85vh;
-            overflow-y: auto;
-            box-sizing: border-box;
-        }
-        .modal-header {
-            font-size: 18px;
-            font-weight: bold;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-        .modal-footer {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-        }
-        .backend-list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 7px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-        }
-        .log-box {
-            background: #1a202c;
-            color: #66bb6a;
-            font-family: monospace;
-            padding: 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            max-height: 150px;
-            overflow-y: auto;
-            border: 1px solid #4a5568;
-            margin-top: 10px;
-        }
-        .status-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 6px;
-        }
-        .status-syncing { background-color: var(--warning-color); animation: pulse 1s infinite; }
-        .status-success { background-color: var(--success-color); }
-        .status-fail { background-color: var(--accent-color); }
-
         @media screen and (max-width: 850px) {
             body { padding: 10px; }
             header { flex-direction: column; align-items: stretch; padding: 15px; }
@@ -313,6 +235,24 @@
             #rangeSearchZone div { flex-direction: column; align-items: stretch; width: 100%; }
             #rangeSearchZone input { width: 100% !important; }
         }
+        .report-summary-box {
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--primary-color);
+            font-size: 13px;
+        }
+        /* 🎯 優化 1：重新部署全網頁 Modal 資安層級。確保提醒/警告強行覆蓋於後台中心最上層 */
+        .modal {
+            display: none;
+            position: fixed;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        #backendModal { z-index: 1000; } /* 后台核心控制中心 */
+        #auditModal { z-index: 2000; } /* 改单審計彈窗 */
+        #globalMsgModal { z-index: 10005; } /* 🌟 終極警告通知：物理層級最高，絕對噴在最前面！ */
     </style>
 </head>
 <body>
@@ -380,11 +320,14 @@
             </div>
 
             <div id="bZoneTicket" style="display:none;">
-                <h3>新增營運票種項目</h3>
-                <div class="form-row form-group">
-                    <input type="text" id="newTicketName" placeholder="輸入新票種名稱" style="flex:2;">
-                    <input type="number" id="newTicketPriceDefault" placeholder="預設單價" style="flex:1;">
-                    <button onclick="submitNewTicket()" style="flex:1; background:var(--success-color);">建立</button>
+                <h3>新增/修改營業票種</h3>
+                <div class="form-group">
+                    <div class="form-row" style="margin-bottom:5px;">
+                        <input type="text" id="newTicketName" placeholder="輸入新票種名稱" style="flex:2;">
+                        <input type="number" id="newTicketPriceDefault" placeholder="票券單價" style="flex:1;">
+                        <input type="number" id="newTicketSeatsDefault" placeholder="計算人次" value="1" min="0" style="flex:1;">
+                    </div>
+                    <button onclick="submitNewTicket()" style="background:var(--success-color);">建立或覆蓋票種基本檔</button>
                 </div>
                 <div id="backendTicketList" style="max-height:200px; overflow-y:auto;"></div>
             </div>
@@ -403,7 +346,7 @@
                 <h3>👥 新增一線同仁網址登入權限帳號</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="newStaffAccount" placeholder="員工帳號 (例：tailong-pos)" style="flex:1;">
+                        <input type="text" id="newStaffAccount" placeholder="員工帳號" style="flex:1;">
                         <input type="text" id="newStaffPassword" placeholder="認證密碼" style="flex:1;">
                         <button onclick="submitNewStaffAccount()" style="flex:1; background:var(--success-color);">授權上架</button>
                     </div>
@@ -492,9 +435,10 @@
                     <div class="form-group"><label>選擇票種</label><select id="ticketType" onchange="syncTicketPrice()"></select></div>
                     <div class="form-group"><label>張數</label><input type="number" id="ticketQty" value="1" min="1"></div>
                     <div class="form-group"><label>票券單價 ($)</label><input type="number" id="ticketPrice" value="249" min="0"></div>
-                    <button id="btnSubmitTicket" onclick="addTicketSale()">確認</button>
+                    <div class="form-group"><label>會員編號 / 合作廠商扣點代碼 (選填)</label><input type="text" id="ticketMemberId" placeholder="輸入代碼或編號"></div>
+                    <button id="btnSubmitTicket" onclick="addTicketSale()">確認 (Enter)</button>
                 </div>
-                <div id="formGoods" style="display:none;">
+                <div id="formGoods">
                     <div class="form-group"><label>選擇商品</label><select id="goodsType" onchange="syncGoodsPrice()"></select></div>
                     <div class="form-group"><label>固定單價 ($)</label><input type="number" id="goodsPriceShow" disabled style="background:#eee;"></div>
                     <div class="form-group"><label>數量</label><input type="number" id="goodsQty" value="-1"></div>
@@ -503,16 +447,28 @@
                             <option value="1.0">無打折 (1.0)</option><option value="0.95">九五折 (0.95)</option><option value="0.9">九折 (0.9)</option><option value="0.85">八五折 (0.85)</option><option value="0.8">八折 (0.8)</option><option value="0.5">五折 (0.5)</option>
                         </select>
                     </div>
+                    <div class="form-group"><label>會員編號 / 合作廠商扣點代碼 (選填)</label><input type="text" id="goodsMemberId" placeholder="輸入代碼或編號"></div>
                     <div id="discountAuthZone" style="display:none; background:#fff3cd; padding:10px; border-radius:4px; border-left:4px solid #f39c12; margin-bottom:12px;">
                         <div class="form-group"><label style="color:#8a6d3b;">⚠️ 特殊折扣原因</label><input type="text" id="goodsDiscountReason" placeholder="例：活動優惠"></div>
                         <div class="form-group"><label style="color:#8a6d3b;">⚠️ 填寫人姓名</label><input type="text" id="goodsDiscountAuthUser" placeholder="請簽名"></div>
                     </div>
-                    <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">確認</button>
+                    <button id="btnSubmitGoods" onclick="addGoodsSale()" class="btn-accent">確認 (Enter)</button>
                 </div>
             </div>
         </div>
 
         <div class="right-panel">
+            <div class="card" id="viewReportSummaryCard" style="display:block;">
+                <h2>📊 當日營業額業績統計匯總 (單日回報專用)</h2>
+                <div class="report-summary-box">
+                    <strong>🎫 票券項目累計銷量：</strong><span id="repTicketTypeSums">暫無票券銷售紀錄</span>
+                    <hr style="border:none; border-top:1px solid #cbd5e0; margin:8px 0;">
+                    <strong>🎬 影片主題累積載客：</strong><span id="repProgramPeopleSums">暫無影片觀看紀錄</span>
+                    <hr style="border:none; border-top:1px solid #cbd5e0; margin:8px 0;">
+                    <strong>🛍️ 周邊商品累積銷售：</strong><span id="repGoodsSums">暫無周邊商品售出紀錄</span>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="tabs">
                     <div class="tab active" id="viewTabDay" onclick="switchView('Day')">📋 當日營運明細</div>
@@ -532,9 +488,9 @@
 
                 <div id="viewDayZone">
                     <h3>🎫 當日票券明細列表</h3>
-                    <div class="table-responsive"><table><thead><tr><th>節目名稱</th><th>場次時間</th><th>票券種類</th><th>單價</th><th>張數</th><th>實收總額</th><th>計算人次</th><th>操作</th></tr></thead><tbody id="ticketTableBody"></tbody></table></div>
+                    <div class="table-responsive"><table><thead><tr><th>輸入時間</th><th>節目名稱</th><th>場次時間</th><th>票券種類</th><th>單價</th><th>張數</th><th>實收總額</th><th>計算人次</th><th>會員/廠商</th><th>操作</th></tr></thead><tbody id="ticketTableBody"></tbody></table></div>
                     <h3 style="margin-top:25px;">🛍️ 當日周邊變動明細</h3>
-                    <div class="table-responsive"><table><thead><tr><th>條碼</th><th>品名</th><th>類型</th><th>單價</th><th>數量</th><th>折扣</th><th>實收總價</th><th>特殊折扣填寫</th><th>操作</th></tr></thead><tbody id="goodsTableBody"></tbody></table></div>
+                    <div class="table-responsive"><table><thead><tr><th>輸入時間</th><th>條碼</th><th>品名</th><th>類型</th><th>單價</th><th>數量</th><th>折扣</th><th>實收總價</th><th>會員/廠商</th><th>特殊折扣簽核</th><th>操作</th></tr></thead><tbody id="goodsTableBody"></tbody></table></div>
                 </div>
                 <div id="viewSessionZone" style="display:none;">
                     <h3>🎬 今日各場次主題與售出人數即時調度表</h3>
@@ -560,23 +516,23 @@ let isSyncing = false;
 
 let authConfig = JSON.parse(localStorage.getItem('volare_auth_config')) || { master: "5372858", user: "42646262" };
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
-let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["巨人8分鐘", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
+let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["長安之上主題影片", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
 
 let defaultStaffDb = { "amy_chung@brogentglobal.com": "5372858" };
 let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || defaultStaffDb;
 
 let defaultTicketDb = {
-    "一般單片票": 249, "一般雙片票": 398, "單片X折票": 350, "動漫X折票": 0,
-    "動漫單人票": 399, "動漫雙人票": 698, "企業優惠票": 220, "集團優惠票": 120,
-    "親子卡": 0, "員工票": 0, "貴賓票": 0, "平台票": 0, "免費票": 0,
-    "團體優惠單單片": 200, "團體優惠雙片": 349, "極速賽車": 150, "極速賽車加購": 99, "極速賽車免費": 0
+    "一般單片票": {price: 249, seats: 1}, "一般雙片票": {price: 398, seats: 1}, "單片X折票": {price: 350, seats: 1}, "動漫X折票": {price: 0, seats: 1},
+    "動漫單人票": {price: 399, seats: 1}, "動漫雙人票": {price: 698, seats: 2}, "企業優惠票": {price: 220, seats: 1}, "集團優惠票": {price: 120, seats: 1},
+    "親子卡": {price: 0, seats: 1}, "員工票": {price: 0, seats: 1}, "貴賓票": {price: 0, seats: 1}, "平台票": {price: 0, seats: 1}, "免費票": {price: 0, seats: 1},
+    "團體優惠單單片": {price: 200, seats: 1}, "團體優惠雙片": {price: 349, seats: 1}, "極速賽車": {price: 150, seats: 0}, "極速賽車加購": {price: 99, seats: 0}, "極速賽車免費": {price: 0, seats: 0}
 };
 let ticketTypeDatabase = JSON.parse(localStorage.getItem('volare_ticket_db_v16')) || defaultTicketDb;
 
 let defaultGoodsDb = {
-    "4710000001": { name: "環保購物袋_手繪風台灣", price: 150, initStock: 100, safetyStock: 20 },
-    "4710000002": { name: "巨人三層L型資料夾", price: 100, initStock: 150, safetyStock: 30 },
-    "4710000003": { name: "巨人陶瓷馬克杯-艾連", price: 580, initStock: 50, safetyStock: 10 }
+    "4710000001": { name: "長安特製香包_手繪風", price: 150, initStock: 100, safetyStock: 20 },
+    "4710000002": { name: "唐代古風長綢扇", price: 200, initStock: 150, safetyStock: 30 },
+    "4710000003": { name: "長安古風陶瓷杯", price: 350, initStock: 50, safetyStock: 10 }
 };
 let goodsDatabase = JSON.parse(localStorage.getItem('volare_goods_db_v13')) || defaultGoodsDb;
 
@@ -592,23 +548,27 @@ rangeQueryStart = todayStr; rangeQueryEnd = todayStr;
 systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 initStaticDropdowns();
 
-document.getElementById('gatePass').addEventListener('keypress', function(e) { if(e.key === 'Enter') preLoginSyncAndAttempt(); });
-document.getElementById('gateUser').addEventListener('keypress', function(e) { if(e.key === 'Enter') preLoginSyncAndAttempt(); });
-
+// 影廳座位安全閥人次換算：極速賽車算 0 人次，不鎖主影廳
 function calculateTicketPeople(type, qty) {
+    if (ticketTypeDatabase[type]) {
+        if (typeof ticketTypeDatabase[type] === 'object') {
+            return qty * (ticketTypeDatabase[type].seats !== undefined ? ticketTypeDatabase[type].seats : 1);
+        }
+    }
     if (type.includes("極速賽車")) return 0;
-    if (type.includes("雙片")) return qty * 1;
     if (type.includes("雙人")) return qty * 2;
     return qty;
 }
 
+// 🎯 優化 2：新增「業績真實回報體驗人數換算機制」。即便人次為 0（賽車），回報單也必須加總體驗人數
+function calculateRealExperienceCount(type, qty) {
+    if (type.includes("雙人")) return qty * 2;
+    return qty; // 其餘票種（包含賽車、免費、親子卡）皆視為真實進店人頭，1張票 = 1位體驗者
+}
+
 function toggleLoginButtonState(disable, text) {
     let btn = document.getElementById('btnLoginAction');
-    if (btn) {
-        btn.disabled = disable;
-        btn.innerText = text;
-        btn.style.background = disable ? "#95a5a6" : "var(--primary-color)";
-    }
+    if (btn) { btn.disabled = disable; btn.innerText = text; btn.style.background = disable ? "#95a5a6" : "var(--primary-color)"; }
 }
 
 function closeMsgModal() { document.getElementById('globalMsgModal').style.display = 'none'; }
@@ -617,35 +577,18 @@ function getActiveDate() { return document.getElementById('currentDate').value; 
 function initDateKey(date) { if (!systemStorage[date]) { systemStorage[date] = { tickets: [], goods: [] }; } }
 
 function setSyncIndicator(status) {
-    let dot = document.getElementById('syncIndicator');
-    let text = document.getElementById('syncText');
-    let now = new Date().toLocaleTimeString();
+    let dot = document.getElementById('syncIndicator'); let text = document.getElementById('syncText'); let now = new Date().toLocaleTimeString();
     if(!dot || !text) return;
-    
     dot.className = 'status-dot';
-    if(status === 'syncing') {
-        dot.classList.add('status-syncing');
-        text.innerText = `雲端資料同步中... (${now})`;
-    } else if (status === 'success') {
-        dot.classList.add('status-success');
-        text.innerText = `雲端安全同步完成 (${now})`;
-    } else {
-        dot.classList.add('status-fail');
-        text.innerText = `雲端同步失敗，切換本地後備中 (${now})`;
-    }
+    if(status === 'syncing') { dot.classList.add('status-syncing'); text.innerText = `雲端資料同步中... (${now})`; }
+    else if (status === 'success') { dot.classList.add('status-success'); text.innerText = `雲端安全同步完成 (${now})`; }
+    else { dot.classList.add('status-fail'); text.innerText = `雲端同步失敗，切換本地後備中 (${now})`; }
 }
 
 function preLoginSyncAndAttempt() {
-    let errDiv = document.getElementById('loginErrorMsg');
-    errDiv.innerText = "正在向 Google 雲端安全鏈結驗證名冊...";
-    errDiv.style.display = 'block';
-    toggleLoginButtonState(true, "⌛ 正在安全驗證中...");
-    
-    setSyncIndicator('syncing');
-    
-    let controller = new AbortController();
-    let timeoutId = setTimeout(() => { controller.abort(); }, 6000); 
-
+    let errDiv = document.getElementById('loginErrorMsg'); errDiv.innerText = "正在向 Google 雲端安全鏈結驗證名冊..."; errDiv.style.display = 'block';
+    toggleLoginButtonState(true, "⌛ 正在安全驗證中..."); setSyncIndicator('syncing');
+    let controller = new AbortController(); let timeoutId = setTimeout(() => { controller.abort(); }, 6000); 
     fetch(CLOUD_DB_URL, { signal: controller.signal })
         .then(res => res.json())
         .then(resData => {
@@ -654,61 +597,35 @@ function preLoginSyncAndAttempt() {
                 if (resData.config) unpackCloudConfig(resData.config);
                 if (resData.sales) smartMergeSales(resData.sales); 
                 localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
-                setSyncIndicator('success');
-                executeActualLoginLogic(); 
-            } else {
-                throw new Error("格式錯誤");
-            }
+                setSyncIndicator('success'); executeActualLoginLogic(); 
+            } else { throw new Error("格式錯誤"); }
         })
         .catch(err => {
-            clearTimeout(timeoutId);
-            setSyncIndicator('fail');
-            toggleLoginButtonState(false, "登入解鎖系統");
-            
-            errDiv.innerHTML = "❌ 雲端資料同步超時或被公司內網阻斷！<br><span style='font-size:12px; font-weight:normal;'>請確認妳在無痕模式下是否有將 Apps Script 確實「管理部署作業」➡️「建立新版本」部署為【任何人】存權限，或檢查 CLOUD_DB_URL 網址是否正確。</span>";
+            clearTimeout(timeoutId); setSyncIndicator('fail'); toggleLoginButtonState(false, "登入解鎖系統");
+            errDiv.innerHTML = "❌ 雲端資料同步超時或被公司內網阻斷！<br><span style='font-size:12px;'>請確認 GAS 是否確實完成「發布新版本」部署。</span>";
             errDiv.style.display = 'block';
         });
 }
 
 function executeActualLoginLogic() {
-    let u = document.getElementById('gateUser').value.trim();
-    let p = document.getElementById('gatePass').value;
-    let errDiv = document.getElementById('loginErrorMsg');
-    
+    let u = document.getElementById('gateUser').value.trim(); let p = document.getElementById('gatePass').value; let errDiv = document.getElementById('loginErrorMsg');
     if (staffDatabase[u] && staffDatabase[u] === p) {
-        errDiv.style.display = 'none';
-        document.getElementById('loginGatekeeperOverlay').style.display = 'none';
-        currentOperatorName = u;
-        initStaticDropdowns();
-        loadDateData(); 
-        
-        pullFromCloud(true); 
-
-        if (u === "amy_chung@brogentglobal.com") {
-            document.getElementById('masterClearDataZone').style.display = 'block';
-        } else {
-            document.getElementById('masterClearDataZone').style.display = 'none';
-        }
-
+        errDiv.style.display = 'none'; document.getElementById('loginGatekeeperOverlay').style.display = 'none';
+        currentOperatorName = u; initStaticDropdowns(); loadDateData(); pullFromCloud(true); 
+        if (u === "amy_chung@brogentglobal.com") document.getElementById('masterClearDataZone').style.display = 'block';
+        else document.getElementById('masterClearDataZone').style.display = 'none';
         showMsg('【提醒】', `🔓 歡迎登入！\n認證帳號：${u}\n系統數據與設定檔已順利與 Google Sheets 聯動。`);
-    } else {
-        toggleLoginButtonState(false, "登入解鎖系統");
-        errDiv.innerText = "❌ 員工帳號或認證密碼不正確，請重新輸入！";
-        errDiv.style.display = 'block';
-    }
+    } else { toggleLoginButtonState(false, "登入解鎖系統"); errDiv.innerText = "❌ 員工帳號或認證密碼不正確，請重新輸入！"; errDiv.style.display = 'block'; }
 }
 
 function executeMasterClearDaySales() {
     let date = getActiveDate();
-    let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong style="color:red;">${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？<br><br>一旦點選「是」，雲端與全店手機將全數同步歸零，無法復原！`;
-    
+    let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong>${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？`;
     showMsg('【清除資料二次確認】', clearConfirmHtml, true, function(approved) {
         if (approved) {
-            initDateKey(date);
-            systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; 
-            pushLog(`執行了最高權限清除資料：抹除 ${date} 營運紀錄`);
-            saveAndRender(); 
-            showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！\n全店雲端數據已同步完成。`);
+            initDateKey(date); systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; 
+            pushLog(`執行了最高權限清除資料：抹除 ${date} 營運紀錄`); saveAndRender(); 
+            showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！`);
         }
     });
 }
@@ -717,126 +634,58 @@ function showMsg(title, body, hasConfirm = false, callback = null) {
     document.getElementById('globalMsgTitle').innerText = title;
     document.getElementById('globalMsgTitle').style.color = title.includes("警告") || title.includes("超載") || title.includes("撞片") || title.includes("清除") ? "var(--accent-color)" : "var(--warning-color)";
     document.getElementById('globalMsgBody').innerHTML = body;
-    
-    let footer = document.getElementById('globalMsgFooter');
-    footer.innerHTML = '';
-    
+    let footer = document.getElementById('globalMsgFooter'); footer.innerHTML = '';
     if (hasConfirm) {
         confirmCallback = callback;
-        footer.innerHTML = `
-            <button onclick="triggerConfirm(true)" style="background:var(--success-color); width:90px; margin-right:10px;">是</button>
-            <button onclick="triggerConfirm(false)" style="background:#95a5a6; width:90px;">否</button>
-        `;
-    } else {
-        footer.innerHTML = `<button onclick="closeMsgModal()" style="width:100px; background:var(--primary-color);">確認</button>`;
-    }
+        footer.innerHTML = `<button onclick="triggerConfirm(true)" style="background:var(--success-color); width:90px; margin-right:10px;">是</button><button onclick="triggerConfirm(false)" style="background:#95a5a6; width:90px;">否</button>`;
+    } else { footer.innerHTML = `<button onclick="closeMsgModal()" style="width:100px; background:var(--primary-color);">確認</button>`; }
     document.getElementById('globalMsgModal').style.display = 'block';
 }
 
-function saveAndRender() {
-    localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
-    loadDateData(); 
-    pushToCloud();
-}
+function saveAndRender() { localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); loadDateData(); pushToCloud(); }
 
 function pullFromCloud(forceSync = false) {
-    if (isSyncing && !forceSync) return; 
-    
-    setSyncIndicator('syncing');
-    fetch(CLOUD_DB_URL)
-        .then(res => res.json())
-        .then(resData => {
-            if (isSyncing && !forceSync) return; 
-            if(resData && !resData.error) {
-                if (resData.config) unpackCloudConfig(resData.config);
-                if (resData.sales) smartMergeSales(resData.sales); 
-                localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
-            }
-            setSyncIndicator('success');
-            loadDateData();
-        }).catch(err => {
-            setSyncIndicator('fail');
-            loadDateData();
-        });
+    if (isSyncing && !forceSync) return; setSyncIndicator('syncing');
+    fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
+        if (isSyncing && !forceSync) return;
+        if(resData && !resData.error) {
+            if (resData.config) unpackCloudConfig(resData.config);
+            if (resData.sales) smartMergeSales(resData.sales);
+            localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
+        }
+        setSyncIndicator('success'); loadDateData();
+    }).catch(err => { setSyncIndicator('fail'); loadDateData(); });
 }
 
 function pushToCloud() {
-    isSyncing = true; 
-    setSyncIndicator('syncing');
-    
-    let syncTimeout = setTimeout(() => { 
-        isSyncing = false; 
-        console.warn("🔒 10秒推送未響應，前端鎖發起物理熔斷解鎖。");
-    }, 10000);
-    
-    let payload = {
-        action: "write",
-        data: {
-            sales: systemStorage,
-            config: {
-                authConfig: authConfig,
-                programList: programList,
-                staffDatabase: staffDatabase,
-                ticketTypeDatabase: ticketTypeDatabase,
-                goodsDatabase: goodsDatabase
-            }
-        }
-    };
-
-    fetch(CLOUD_DB_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(resData => {
-        clearTimeout(syncTimeout); 
-        isSyncing = false; 
-        if(resData && resData.status === "success") setSyncIndicator('success');
-        else setSyncIndicator('fail');
-    })
-    .catch(err => {
-        clearTimeout(syncTimeout);
-        isSyncing = false; 
-        setSyncIndicator('fail');
-    });
+    isSyncing = true; setSyncIndicator('syncing');
+    let syncTimeout = setTimeout(() => { isSyncing = false; }, 10000);
+    let payload = { action: "write", data: { sales: systemStorage, config: { authConfig: authConfig, programList: programList, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase } } };
+    fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+    .then(res => res.json()).then(resData => { clearTimeout(syncTimeout); isSyncing = false; if(resData && resData.status === "success") setSyncIndicator('success'); else setSyncIndicator('fail'); })
+    .catch(err => { clearTimeout(syncTimeout); isSyncing = false; setSyncIndicator('fail'); });
 }
 
 function smartMergeSales(cloudSales) {
     if (!cloudSales) return;
     for (let date in cloudSales) {
-        if (!systemStorage[date]) {
-            systemStorage[date] = cloudSales[date];
-        } else {
+        if (!systemStorage[date]) { systemStorage[date] = cloudSales[date]; } else {
             if (cloudSales[date].clearedAt) {
                 if (!systemStorage[date].clearedAt || cloudSales[date].clearedAt > systemStorage[date].clearedAt) {
-                    systemStorage[date].clearedAt = cloudSales[date].clearedAt;
-                    systemStorage[date].tickets = [];
-                    systemStorage[date].goods = [];
+                    systemStorage[date].clearedAt = cloudSales[date].clearedAt; systemStorage[date].tickets = []; systemStorage[date].goods = [];
                 }
             }
-            
             let localClearedAt = systemStorage[date].clearedAt || 0;
-
             if (cloudSales[date].tickets) {
                 cloudSales[date].tickets.forEach(cTicket => {
-                    let ticketTimestamp = parseInt(cTicket.id.split('_')[1]) || 0;
-                    if (localClearedAt && ticketTimestamp < localClearedAt) return;
-                    
-                    if (!systemStorage[date].tickets.some(lTicket => lTicket.id === cTicket.id)) {
-                        systemStorage[date].tickets.push(cTicket);
-                    }
+                    let ticketTimestamp = parseInt(cTicket.id.split('_')[1]) || 0; if (localClearedAt && ticketTimestamp < localClearedAt) return;
+                    if (!systemStorage[date].tickets.some(lTicket => lTicket.id === cTicket.id)) systemStorage[date].tickets.push(cTicket);
                 });
             }
-            
             if (cloudSales[date].goods) {
                 cloudSales[date].goods.forEach(cGood => {
-                    let goodTimestamp = parseInt(cGood.id.split('_')[1]) || 0;
-                    if (localClearedAt && goodTimestamp < localClearedAt) return;
-                    
-                    if (!systemStorage[date].goods.some(lGood => lGood.id === cGood.id)) {
-                        systemStorage[date].goods.push(cGood);
-                    }
+                    let goodTimestamp = parseInt(cGood.id.split('_')[1]) || 0; if (localClearedAt && goodTimestamp < localClearedAt) return;
+                    if (!systemStorage[date].goods.some(lGood => lGood.id === cGood.id)) systemStorage[date].goods.push(cGood);
                 });
             }
         }
@@ -849,24 +698,18 @@ function unpackCloudConfig(cfg) {
     ticketTypeDatabase = (cfg.ticketTypeDatabase && Object.keys(cfg.ticketTypeDatabase).length > 0) ? cfg.ticketTypeDatabase : ticketTypeDatabase;
     goodsDatabase = (cfg.goodsDatabase && Object.keys(cfg.goodsDatabase).length > 0) ? cfg.goodsDatabase : goodsDatabase;
     authConfig = cfg.authConfig || authConfig;
-    
-    if (cfg.staffDatabase && Object.keys(cfg.staffDatabase).length > 0) {
-        staffDatabase = Object.assign({}, staffDatabase, cfg.staffDatabase);
-    }
-    
-    localStorage.setItem('volare_auth_config', JSON.stringify(authConfig));
-    localStorage.setItem('volare_programs_v13', JSON.stringify(programList));
-    localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase));
-    localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase));
-    localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase));
+    if (cfg.staffDatabase && Object.keys(cfg.staffDatabase).length > 0) staffDatabase = Object.assign({}, staffDatabase, cfg.staffDatabase);
+    localStorage.setItem('volare_auth_config', JSON.stringify(authConfig)); localStorage.setItem('volare_programs_v13', JSON.stringify(programList));
+    localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase)); localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase));
 }
 
-function onMasterDateChange() { pullFromCloud(); } 
+function onMasterDateChange() { pullFromCloud(); }
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
     rangeQueryStart = s; rangeQueryEnd = e; pullFromCloud();
 }
+// 切換登記面板
 function switchForm(form) {
     document.getElementById('formTicket').style.display = form === 'Ticket' ? 'block' : 'none';
     document.getElementById('formGoods').style.display = form === 'Goods' ? 'block' : 'none';
@@ -885,9 +728,13 @@ function initStaticDropdowns() {
     for(let barcode in goodsDatabase) { gSelect.innerHTML += `<option value="${barcode}">${goodsDatabase[barcode].name}</option>`; }
     syncTicketPrice(); syncGoodsPrice();
 }
+
 function syncTicketPrice() {
     let tName = document.getElementById('ticketType').value;
-    if(ticketTypeDatabase[tName] !== undefined) document.getElementById('ticketPrice').value = ticketTypeDatabase[tName];
+    if(ticketTypeDatabase[tName] !== undefined) {
+        let p = typeof ticketTypeDatabase[tName] === 'object' ? ticketTypeDatabase[tName].price : ticketTypeDatabase[tName];
+        document.getElementById('ticketPrice').value = p;
+    }
 }
 function syncGoodsPrice() {
     let barcode = document.getElementById('goodsType').value;
@@ -903,70 +750,54 @@ function pushLog(action) {
     localStorage.setItem('volare_admin_logs', JSON.stringify(adminLogs)); renderLogBox();
 }
 function renderLogBox() {
-    let container = document.getElementById('adminLogContainer');
-    if(container) container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
+    let container = document.getElementById('adminLogContainer'); if(container) container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
 }
 
 function addTicketSale() {
-    let date = getActiveDate(); 
-    let program = document.getElementById('ticketProgram').value;
+    let date = getActiveDate(); let program = document.getElementById('ticketProgram').value;
     let time = document.getElementById('timeHour').value + ':' + document.getElementById('timeMin').value;
-    let type = document.getElementById('ticketType').value; 
-    let qty = parseInt(document.getElementById('ticketQty').value);
+    let type = document.getElementById('ticketType').value; let qty = parseInt(document.getElementById('ticketQty').value);
     let price = parseInt(document.getElementById('ticketPrice').value);
+    let mid = document.getElementById('ticketMemberId').value.trim() || "--"; 
     
     if (!date) { showMsg('【提醒】', '請先選取營運日期！'); return; }
     if (!qty || qty < 1) { showMsg('【提醒】', '請輸入正確的張數！'); return; }
     if (type.includes("極速賽車")) { program = "隨到隨開場：極速賽車項目"; time = "--"; }
 
     if (time !== "--") {
-        let incomingPeople = calculateTicketPeople(type, qty);
-        let existingFilmsInSession = [];
-        let currentSessionPeopleTotal = 0;
-        
+        let incomingPeople = calculateTicketPeople(type, qty); let existingFilmsInSession = []; let currentSessionPeopleTotal = 0;
         if (systemStorage && systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
                 if (rec.time === time && rec.program !== "--") {
-                    if (!existingFilmsInSession.includes(rec.program)) {
-                        existingFilmsInSession.push(rec.program);
-                    }
+                    if (!existingFilmsInSession.includes(rec.program)) existingFilmsInSession.push(rec.program);
                     currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty);
                 }
             });
         }
-
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
             let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
             showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) {
                 if (approved) {
-                    if ((currentSessionPeopleTotal + incomingPeople) > 8) {
-                        triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople));
-                    } else {
-                        executeTicketCommit(date, program, time, type, qty, price);
-                    }
+                    if ((currentSessionPeopleTotal + incomingPeople) > 8) triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople), mid);
+                    else executeTicketCommit(date, program, time, type, qty, price, mid);
                 }
-            });
-            return; 
+            }); return; 
         }
-
-        if ((currentSessionPeopleTotal + incomingPeople) > 8) { 
-            triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople)); 
-            return; 
-        }
+        if ((currentSessionPeopleTotal + incomingPeople) > 8) { triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople), mid); return; }
     }
-    executeTicketCommit(date, program, time, type, qty, price);
+    executeTicketCommit(date, program, time, type, qty, price, mid);
 }
 
-function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal) {
+function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal, mid) {
     let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，請確認是否繼續？`;
-    showMsg('【座位超載警告】', warningHtml, true, function(approved) { 
-        if (approved) executeTicketCommit(date, program, time, type, qty, price); 
-    });
+    showMsg('【座位超載警告】', warningHtml, true, function(approved) { if (approved) executeTicketCommit(date, program, time, type, qty, price, mid); });
 }
 
-function executeTicketCommit(date, program, time, type, qty, price) {
+function executeTicketCommit(date, program, time, type, qty, price, mid) {
     initDateKey(date); 
-    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, audit: null });
+    let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
+    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null });
+    document.getElementById('ticketMemberId').value = ""; 
     saveAndRender();
 }
 
@@ -974,6 +805,7 @@ function addGoodsSale() {
     let date = getActiveDate(); let barcode = document.getElementById('goodsType').value;
     let qty = parseInt(document.getElementById('goodsQty').value); let discount = parseFloat(document.getElementById('goodsDiscount').value);
     let parsedDiscount = parseFloat(discount.toFixed(2));
+    let mid = document.getElementById('goodsMemberId').value.trim() || "--"; 
     if(!date) { showMsg('【提醒】', '請先選擇營運日期！'); return; }
     if(!barcode) { showMsg('【提醒】', '請先選擇周邊商品！'); return; }
     let reason = "", authUser = "";
@@ -982,30 +814,29 @@ function addGoodsSale() {
         if(!reason || !authUser) { showMsg('【提醒】', '特殊折扣成因與填寫人姓名為必填項目！'); return; }
     }
     checkAndWarnSafetyStock(barcode, qty); initDateKey(date);
-    systemStorage[date].goods.push({ id: 'G_' + Date.now(), barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: parsedDiscount, discountReason: reason, discountAuthUser: authUser, audit: null });
-    document.getElementById('goodsDiscountReason').value = ""; document.getElementById('goodsDiscountAuthUser').value = ""; document.getElementById('goodsDiscount').value = "1.0";
+    let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
+    systemStorage[date].goods.push({ id: 'G_' + Date.now(), timestamp: clockStr, barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: parsedDiscount, discountReason: reason, discountAuthUser: authUser, memberId: mid, audit: null });
+    document.getElementById('goodsDiscountReason').value = ""; document.getElementById('goodsDiscountAuthUser').value = ""; document.getElementById('goodsDiscount').value = "1.0"; document.getElementById('goodsMemberId').value = "";
     toggleDiscountAuthZone(); saveAndRender();
 }
 
 function checkAndWarnSafetyStock(barcode, incomingQty) {
-    if (incomingQty >= 0) return;
-    let salesNeeded = Math.abs(incomingQty); let totalSoldBefore = 0;
-    for(let d in systemStorage) {
-        if(systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { if(g.barcode === barcode && g.qty < 0) totalSoldBefore += Math.abs(g.qty); }); }
-    }
+    if (incomingQty >= 0) return; let salesNeeded = Math.abs(incomingQty); let totalSoldBefore = 0;
+    for(let d in systemStorage) { if(systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { if(g.barcode === barcode && g.qty < 0) totalSoldBefore += Math.abs(g.qty); }); } }
     let item = goodsDatabase[barcode]; let expectedStock = item.initStock - (totalSoldBefore + salesNeeded);
-    if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件，低於安全水位 (${item.safetyStock} 件)！`);
+    if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件！`);
 }
 
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
         if (goodsDatabase[barcode]) {
-            let date = getActiveDate(); checkAndWarnSafetyStock(barcode, -1); initDateKey(date);
-            systemStorage[date].goods.push({ id: 'G_' + Date.now(), barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: -1, discount: 1.0, discountReason: "", discountAuthUser: "", audit: null });
-            saveAndRender();
-        } else { showMsg('【提醒】', "此商品條碼尚未在後台基本存檔建立項目！"); }
-        this.value = '';
+            switchForm('Goods'); 
+            document.getElementById('goodsType').value = barcode; 
+            syncGoodsPrice();
+            document.getElementById('goodsQty').focus(); 
+        } else { showMsg('【提醒】', "此商品條碼尚未在後台建立項目！"); }
+        this.value = ''; e.preventDefault();
     }
 });
 
@@ -1017,11 +848,12 @@ function verifyBackendPassword() {
     else if (inputPass === authConfig.user) { currentActiveRole = "user"; currentOperatorName = operator; unlockBackendControl(); pushLog("登入後台"); }
     else { showMsg('【提醒】', "後台管理密碼錯誤，拒絕通行！"); }
 }
+
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
     if(currentActiveRole === 'master') { document.getElementById('passwordEditZone').style.display = 'block'; document.getElementById('passwordDeniedZone').style.display = 'none'; }
     else { document.getElementById('passwordEditZone').style.display = 'none'; document.getElementById('passwordDeniedZone').style.display = 'block'; }
-    document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentActiveRole === 'master' ? '系統最高權限' : '一般使用者'})`;
+    document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentActiveRole === 'master' ? '最高權限' : '一般使用者'})`;
     renderBackendLists(); renderLogBox(); renderStaffList();
 }
 function switchBackendTab(tab) {
@@ -1033,57 +865,48 @@ function switchBackendTab(tab) {
 function submitNewStaffAccount() {
     let acc = document.getElementById('newStaffAccount').value.trim(); let pas = document.getElementById('newStaffPassword').value.trim();
     if(acc && pas) {
-        staffDatabase[acc] = pas; 
-        pushLog(`建立了新同仁登入授權帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList();
-        saveAndRender(); 
+        staffDatabase[acc] = pas; pushLog(`建立了新同仁帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList(); saveAndRender(); 
         showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功授權上架！`);
     } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
 }
 
 function deleteStaffAccountByAcc(acc) {
-    if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號為系統核心安全鎖，不允許刪除！");
-    showMsg('【安全註銷確認】', `確定要註銷並移除同仁【${acc}】的系統網址登入權限嗎？`, true, function(approved) {
-        if(approved) {
-            delete staffDatabase[acc];
-            pushLog(`註銷了同仁登入授權: ${acc}`);
-            renderStaffList();
-            saveAndRender(); 
-        }
-    });
+    if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者帳號不允許刪除！");
+    showMsg('【安全註銷確認】', `確定要註銷同仁【${acc}】的登入權限嗎？`, true, function(approved) { if(approved) { delete staffDatabase[acc]; pushLog(`註銷了同仁: ${acc}`); renderStaffList(); saveAndRender(); } });
 }
 
 function renderStaffList() {
     let container = document.getElementById('backendStaffList'); if(!container) return; container.innerHTML = '';
-    for(let acc in staffDatabase) { 
-        container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> (通行碼: ••••••••)</span><button class="btn-sm btn-accent btn-del-staff" data-acc="${acc}">註銷權限</button></div>`; 
-    }
-    document.querySelectorAll('.btn-del-staff').forEach(btn => {
-        btn.onclick = function() { deleteStaffAccountByAcc(this.getAttribute('data-acc')); };
-    });
+    for(let acc in staffDatabase) { container.innerHTML += `<div class="backend-list-item"><span><span>👤 帳號：</span><strong>${acc}</strong> (通行碼: ••••••••)</span><button class="btn-sm btn-accent btn-del-staff" data-acc="${acc}">註銷權限</button></div>`; }
+    document.querySelectorAll('.btn-del-staff').forEach(btn => { btn.onclick = function() { deleteStaffAccountByAcc(this.getAttribute('data-acc')); }; });
 }
 
 function renderBackendLists() {
     let pList = document.getElementById('backendProgList'); pList.innerHTML = '';
     programList.forEach((p, idx) => { pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div>`; });
     let tList = document.getElementById('backendTicketList'); tList.innerHTML = '';
-    for(let tName in ticketTypeDatabase) { tList.innerHTML += `<div class="backend-list-item"><span>${tName} ($${ticketTypeDatabase[tName]})</span><button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div>`; }
+    for(let tName in ticketTypeDatabase) { 
+        let seats = typeof ticketTypeDatabase[tName] === 'object' ? (ticketTypeDatabase[tName].seats !== undefined ? ticketTypeDatabase[tName].seats : 1) : 1;
+        let price = typeof ticketTypeDatabase[tName] === 'object' ? (ticketTypeDatabase[tName].price || 0) : ticketTypeDatabase[tName];
+        tList.innerHTML += `<div class="backend-list-item"><span>${tName} ($${price} / 計 ${seats}人次)</span><button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div>`; 
+    }
     let gList = document.getElementById('backendGoodsList'); gList.innerHTML = '<h4>現有周邊品項清單</h4>';
     for(let barcode in goodsDatabase) { gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div>`; }
 }
 function submitNewProgram() { let val = document.getElementById('newProgName').value.trim(); if(val) { programList.push(val); pushLog(`新增影片: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); } }
 function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); pushLog(`刪除影片: ${old}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+
 function submitNewTicket() { 
     let val = document.getElementById('newTicketName').value.trim(); let defaultPrice = parseInt(document.getElementById('newTicketPriceDefault').value) || 0;
-    if(val) { ticketTypeDatabase[val] = defaultPrice; pushLog(`新增票種: ${val} ($${defaultPrice})`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); } 
+    let defaultSeats = parseInt(document.getElementById('newTicketSeatsDefault').value); if (isNaN(defaultSeats)) defaultSeats = 1;
+    if(val) { ticketTypeDatabase[val] = {price: defaultPrice, seats: defaultSeats}; pushLog(`變更票種: ${val} ($${defaultPrice} / ${defaultSeats}人次)`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; document.getElementById('newTicketSeatsDefault').value = '1'; renderBackendLists(); initStaticDropdowns(); saveAndRender(); } 
 }
 function deleteTicket(tName) { delete ticketTypeDatabase[tName]; pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
-// 儲存周邊商品基本檔
 function submitNewGoods() {
     let bc = document.getElementById('newGBarcode').value.trim(); let name = document.getElementById('newGName').value.trim(); let price = parseInt(document.getElementById('newGPrice').value);
     let initStock = parseInt(document.getElementById('newGInit').value) || 0; let safety = parseInt(document.getElementById('newGSafety').value) || 0;
     if(bc && name && price) {
-        goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety };
-        pushLog(`更新周邊: [${bc}] ${name}`); document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
+        goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety }; pushLog(`更新周邊: [${bc}] ${name}`); document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
         renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊資料配置成功！");
     } else { showMsg('【提醒】', "請填寫完整欄位！"); }
 }
@@ -1120,20 +943,11 @@ function submitModalEdit() {
 }
 
 function switchView(view) {
-    currentView = view;
-    const views = ['Day', 'Session', 'Stock', 'Month'];
-    
-    views.forEach(v => {
-        const tabEl = document.getElementById('viewTab' + v);
-        if (tabEl) tabEl.classList.toggle('active', v === view);
-    });
-
-    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none';
-    document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
-    document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none';
-    document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
+    currentView = view; const views = ['Day', 'Session', 'Stock', 'Month'];
+    views.forEach(v => { const tabEl = document.getElementById('viewTab' + v); if (tabEl) tabEl.classList.toggle('active', v === view); });
+    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none'; document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none';
+    document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none'; document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
     document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
-    
     loadDateData(); 
 }
 
@@ -1142,12 +956,34 @@ function loadDateData() {
     for(let d in systemStorage) {
         if(systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!globalGoodsSalesCount[item.barcode]) globalGoodsSalesCount[item.barcode] = 0; globalGoodsSalesCount[item.barcode] += Math.abs(item.qty); } }); }
     }
-    let tSum = 0, tPeople = 0, gSum = 0;
+    let tSum = 0, tPeople = 0, gSum = 0; let rTicketTypeMap = {}, rProgramPeopleMap = {}, rGoodsMap = {};
     if (systemStorage[date]) {
-        if(systemStorage[date].tickets) systemStorage[date].tickets.forEach(x => { tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); });
-        if(systemStorage[date].goods) systemStorage[date].goods.forEach(y => { if(y.qty < 0) gSum += Math.round(y.price * Math.abs(y.qty) * y.discount); });
+        if(systemStorage[date].tickets) {
+            systemStorage[date].tickets.forEach(x => { 
+                tSum += x.amount; 
+                tPeople += calculateTicketPeople(x.type, x.qty); // 影廳座位防線計法 (賽車 = 0)
+                
+                // 🎯 優化 2「雙軌制」：計算營業加總回報時，改用體驗人頭計法 (賽車/免費票皆老實計算為實際來客人數)
+                let actualExperiences = calculateRealExperienceCount(x.type, x.qty);
+                
+                rTicketTypeMap[x.type] = (rTicketTypeMap[x.type] || 0) + x.qty;
+                rProgramPeopleMap[x.program] = (rProgramPeopleMap[x.program] || 0) + actualExperiences;
+            });
+        }
+        if(systemStorage[date].goods) {
+            systemStorage[date].goods.forEach(y => { 
+                if(y.qty < 0) { let realSoldAmount = Math.round(y.price * Math.abs(y.qty) * y.discount); gSum += realSoldAmount; rGoodsMap[y.name] = (rGoodsMap[y.name] || 0) + Math.abs(y.qty); }
+            });
+        }
     }
     document.getElementById('dayTicketSum').innerText = `$ ${tSum.toLocaleString()} (${tPeople} 人次)`; document.getElementById('dayGoodsSum').innerText = `$ ${gSum.toLocaleString()}`; document.getElementById('dayTotalSum').innerText = `$ ${(tSum + gSum).toLocaleString()}`;
+    let repTStr = [], repPStr = [], repGStr = [];
+    for (let k in rTicketTypeMap) repTStr.push(`【${k}: ${rTicketTypeMap[k]}張】`);
+    for (let k in rProgramPeopleMap) repPStr.push(`【${k}: ${rProgramPeopleMap[k]}人次】`);
+    for (let k in rGoodsMap) repGStr.push(`【${k}: ${rGoodsMap[k]}個】`);
+    document.getElementById('repTicketTypeSums').innerHTML = repTStr.length > 0 ? repTStr.join(' ') : "暫無銷售紀錄";
+    document.getElementById('repProgramPeopleSums').innerHTML = repPStr.length > 0 ? repPStr.join(' ') : "暫無開場紀錄";
+    document.getElementById('repGoodsSums').innerHTML = repGStr.length > 0 ? repGStr.join(' ') : "暫無銷售紀錄";
 
     if (currentView === 'Day') {
         let ticketBody = document.getElementById('ticketTableBody'); let goodsBody = document.getElementById('goodsTableBody'); ticketBody.innerHTML = ''; goodsBody.innerHTML = '';
@@ -1155,58 +991,47 @@ function loadDateData() {
             if(systemStorage[date].tickets) {
                 systemStorage[date].tickets.forEach(item => {
                     let peopleCount = calculateTicketPeople(item.type, item.qty);
-                    let auditLogHtml = item.audit ? `<tr><td colspan="8"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
-                    ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
+                    let clockHtml = item.timestamp ? `<span style="color:#7f8c8d; font-family:monospace;">[${item.timestamp}]</span>` : `<span style="color:#cbd5e0;">--</span>`;
+                    let midText = item.memberId || "--";
+                    let auditLogHtml = item.audit ? `<tr><td colspan="10"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
+                    ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${clockHtml}</td><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td style="color:#2b6cb0; font-weight:bold;">${midText}</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改</button></td></tr>${auditLogHtml}`;
                 });
             }
             if(systemStorage[date].goods) {
                 systemStorage[date].goods.forEach(item => {
                     let subtotal = item.qty < 0 ? Math.round(item.price * Math.abs(item.qty) * item.discount) : 0; 
-                    let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (填寫人:${item.discountAuthUser})` : '--';
-                    let auditLogHtml = item.audit ? `<tr><td colspan="9"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
-                    goodsBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${item.barcode}</td><td>${item.name}</td><td>${item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>":"<span style='color:green;'>🟢 進貨</span>"}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#8a6d3b; font-size:11px;">${authText}</td><td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${date}')">✍️ 修改說明</button></td></tr>${auditLogHtml}`;
+                    let clockHtml = item.timestamp ? `<span style="color:#7f8c8d; font-family:monospace;">[${item.timestamp}]</span>` : `<span style="color:#cbd5e0;">--</span>`;
+                    let midText = item.memberId || "--"; let authText = item.discount !== 1.0 ? `原因:${item.discountReason} (人:${item.discountAuthUser})` : '--';
+                    let auditLogHtml = item.audit ? `<tr><td colspan="11"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason}</div></td></tr>` : '';
+                    goodsBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${clockHtml}</td><td>${item.barcode}</td><td>${item.name}</td><td>${item.qty < 0 ? "<span style='color:red;'>🔴 售出</span>":"<span style='color:green;'>🟢 進貨</span>"}</td><td>$ ${item.price}</td><td>${item.qty}</td><td>${item.discount}</td><td><strong>$ ${subtotal.toLocaleString()}</strong></td><td style="color:#2b6cb0; font-weight:bold;">${midText}</td><td style="color:#8a6d3b; font-size:11px;">${authText}</td><td><button class="btn-sm btn-accent" onclick="openEditModal('Goods', '${item.id}', '${date}')">✍️ 修改</button></td></tr>${auditLogHtml}`;
                 });
             }
         }
     } else if (currentView === 'Session') {
-        let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {};
-        let kartQtyTotal = 0; let kartAmountTotal = 0;
-
+        let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {}; let kartQtyTotal = 0; let kartAmountTotal = 0;
         if (systemStorage[date] && systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(rec => {
-                if (rec.type.includes("極速賽車")) {
-                    kartQtyTotal += rec.qty; kartAmountTotal += rec.amount;
-                } else if (rec.time !== "--") {
+                if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } 
+                else if (rec.time !== "--") {
                     if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; 
                     if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program);
                     sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty);
                 }
             });
         }
-        
-        let sortedSessions = Object.keys(sessionData).sort(); 
-        if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
-        
+        let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
         sortedSessions.forEach(time => {
             let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8;
             sBody.innerHTML += `<tr><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`;
         });
-
         if (kartQtyTotal > 0) {
-            sBody.innerHTML += `
-                <tr style="background:#fffbeb; border-top:2px solid #fef3c7;">
-                    <td><strong>🏎️ [賽車]</strong></td>
-                    <td><span style="color:#d97706; font-weight:bold;">隨到隨開場：極速賽車項目</span></td>
-                    <td style="font-weight:bold; color:#b45309;">${kartQtyTotal} 人次</td>
-                    <td>--</td>
-                    <td><span style="color:#b45309; font-weight:bold;">當日累計收：$ ${kartAmountTotal.toLocaleString()}</span></td>
-                </tr>`;
+            sBody.innerHTML += `<tr style="background:#fffbeb; border-top:2px solid #fef3c7;"><td><strong>🏎️ [賽車]</strong></td><td><span style="color:#d97706; font-weight:bold;">隨到隨開場：極速賽車項目</span></td><td style="font-weight:bold; color:#b45309;">${kartQtyTotal} 人次</td><td>--</td><td><span style="color:#b45309; font-weight:bold;">當日累計收：$ ${kartAmountTotal.toLocaleString()}</span></td></tr>`;
         }
     } else if (currentView === 'Stock') {
         let stockBody = document.getElementById('stockTableBody'); stockBody.innerHTML = '';
         for(let barcode in goodsDatabase) {
             let item = goodsDatabase[barcode]; let soldQty = globalGoodsSalesCount[barcode] || 0; let currentStock = item.initStock - soldQty; let isAlert = currentStock < item.safetyStock;
-            stockBody.innerHTML += `<tr><td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存不足【請補貨】':'✅ 庫存安全'}</td></tr>`;
+            stockBody.innerHTML += `<tr><td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存不足':'✅ 庫存安全'}</td></tr>`;
         }
     } else if (currentView === 'Month') {
         let monthBody = document.getElementById('monthTableBody'); monthBody.innerHTML = ''; let allDates = Object.keys(systemStorage).sort(); let filteredDates = allDates.filter(d => d >= rangeQueryStart && d <= rangeQueryEnd);
@@ -1223,26 +1048,22 @@ function loadDateData() {
 function exportRangeData() {
     let start = document.getElementById('expStart').value; let end = document.getElementById('expEnd').value;
     if(!start || !end || start > end) { showMsg('【提醒】', "請選取正確的日期導出區間！"); return; }
-    let csvContent = "\uFEFF"; csvContent += `VOLARE 營運智慧整合區間報表,查詢區間:,${start} 至 ${end}\n\n=== 🎫 票券銷售累計明細 ===\n營業日期,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,內部審計簽核\n`;
+    let csvContent = "\uFEFF"; csvContent += `VOLARE 營運智慧整合區間報表,查詢區間:,${start} 至 ${end}\n\n=== 🎫 票券銷售累計明細 ===\n營業日期,輸入時間,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,會員編號/廠商代碼,內部審計簽核\n`;
     let allDates = Object.keys(systemStorage).sort();
     allDates.forEach(d => {
         if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) {
-            systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; });
+            systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.memberId || '--'},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; });
         }
     });
-    
-    csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,特殊折扣說明與填寫人,內部審計改單簽核\n";
+    csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,輸入時間,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,會員編號/廠商代碼,特殊折扣說明與填寫人,內部審計改單簽核\n";
     allDates.forEach(d => {
         if(d >= start && d <= end && systemStorage[d] && systemStorage[d].goods) {
             systemStorage[d].goods.forEach(g => {
                 let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0;
-                let typeText = g.qty < 0 ? "售出" : "進貨";
-                let authText = g.discount !== 1.0 ? `原因:${g.discountReason} (填寫人:${g.discountAuthUser})` : '無折扣';
-                csvContent += `${d},${g.barcode},${g.name},${typeText},${g.price},${g.qty},${g.discount},${subtotal},${authText},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`;
+                csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId || '--'},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`;
             });
         }
     });
-
     csvContent += "\n=== 📊 每日營業加總日報 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
     allDates.forEach(d => {
         if(d >= start && d <= end && systemStorage[d]) {
@@ -1256,7 +1077,6 @@ function exportRangeData() {
     let rangeGoodsSales = {};
     allDates.forEach(d => {
         if(d <= end && systemStorage[d] && systemStorage[d].goods) {
-            // 🛠️🌟【優化修復點】已將無意義的 csvContent; 殘留碎屑徹底洗空拔除，程式清爽度 100%
             systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } });
         }
     });
@@ -1265,8 +1085,35 @@ function exportRangeData() {
         csvContent += `${barcode},${item.name},${item.price},${item.initStock},${soldQty},${remain},${item.safetyStock},${remain < item.safetyStock ? "庫存不足" : "庫存安全"}\n`;
     }
     let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `VOLARE_綜合總覽營運報表_${start}_至_${end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    link.setAttribute("download", `VOLARE_整合營運總匯報表_${start}_至_${end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
+
+// 🎯 全域智慧環境 Enter 攔截大腦，全面管理全頁面
+document.addEventListener('keypress', function(e) {
+    if (e.key !== 'Enter') return;
+    if (e.target.tagName === 'TEXTAREA') return; 
+
+    if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') {
+        preLoginSyncAndAttempt();
+    } else if (document.getElementById('globalMsgModal').style.display === 'block') {
+        // 如果跳出警告提示彈窗，Enter 鍵預設等同於關閉該確認彈窗，防止同仁滑鼠點擊疲勞
+        closeMsgModal();
+    } else if (document.getElementById('auditModal').style.display === 'block') {
+        submitModalEdit();
+    } else if (document.getElementById('backendModal').style.display === 'block') {
+        if (document.getElementById('backendAuthZone').style.display !== 'none') {
+            verifyBackendPassword();
+        } else if (currentBackendTab === 'Prog') submitNewProgram();
+        else if (currentBackendTab === 'Ticket') submitNewTicket();
+        else if (currentBackendTab === 'Goods') submitNewGoods();
+        else if (currentBackendTab === 'Users') submitNewStaffAccount();
+        else if (currentBackendTab === 'Pass') changeSystemPasswords();
+    } else if (document.getElementById('formTicket').style.display !== 'none') {
+        addTicketSale();
+    } else if (document.getElementById('formGoods').style.display !== 'none') {
+        addGoodsSale();
+    }
+});
 </script>
 </body>
 </html>
