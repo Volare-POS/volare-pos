@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v44</title>
+    <title>VOLARE 智慧雲端安全營運系統 v45</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -304,19 +304,19 @@
             width: 100%;
             margin-top: 5px;
             border-collapse: collapse;
-            table-layout: fixed;
-            word-break: break-all;
         }
         .summary-mini-table th, .summary-mini-table td {
             padding: 8px 10px;
             font-size: 13px;
             border: 1px solid #e2e8f0;
-            text-overflow: ellipsis;
-            overflow: hidden;
+            word-break: break-word;
+            white-space: normal;
         }
         .summary-mini-table th { background: #edf2f7; color: #4a5568; }
-        .summary-mini-table th:nth-child(1) { width: 65%; }
-        .summary-mini-table th:nth-child(2) { width: 35%; }
+        .summary-mini-table td:last-child, .summary-mini-table th:last-child {
+            white-space: nowrap;
+            width: 1%;
+        }
 
         @media screen and (max-width: 850px) {
             body { padding: 10px; }
@@ -595,7 +595,7 @@
                     </div>
                     <div style="margin-top: 20px; width: 100%; background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
                         <h4 style="margin:0 0 8px 0; color:#2b6cb0;">🎬 各影片主題累積體驗人數 (載客總人頭)</h4>
-                        <div class="table-responsive" style="max-width: 550px;"><table class="summary-mini-table"><thead><tr><th>播映影片項目</th><th>總體驗人數</th></tr></thead><tbody id="sumFilmTableBody"></tbody></table></div>
+                        <div class="table-responsive"><table class="summary-mini-table"><thead><tr><th>播映影片項目</th><th>總體驗人數</th></tr></thead><tbody id="sumFilmTableBody"></tbody></table></div>
                     </div>
                 </div>
 
