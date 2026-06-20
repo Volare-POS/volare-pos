@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v43</title>
+    <title>VOLARE 智慧雲端安全營運系統 v44</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -19,10 +19,12 @@
             margin: 0;
             padding: 20px;
             color: #333;
+            overflow-x: hidden;
         }
         .container {
-            max-width: 1750px;
+            max-width: 100%;
             margin: 0 auto;
+            box-sizing: border-box;
         }
         #loginGatekeeperOverlay {
             position: fixed;
@@ -79,6 +81,7 @@
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             margin-bottom: 20px;
+            box-sizing: border-box;
         }
         h2 {
             margin-top: 0;
@@ -143,6 +146,7 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             margin-top: 10px;
+            border-radius: 6px;
         }
         table {
             width: 100%;
@@ -220,6 +224,51 @@
             font-weight: bold;
             animation: pulse 2s infinite;
         }
+        @keyframes pulse {
+            0% { background-color: #ffe3e3; }
+            50% { background-color: #ffb3b3; }
+            100% { background-color: #ffe3e3; }
+        }
+        .highlight-alert-text {
+            color: #e74c3c;
+            font-weight: 900;
+            font-size: 16px;
+            background: #fdf2f2;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #fbcfe8;
+        }
+        .backend-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            gap: 8px;
+        }
+        .log-box {
+            background: #1a202c;
+            color: #66bb6a;
+            font-family: monospace;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #4a5568;
+            margin-top: 10px;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-syncing { background-color: var(--warning-color); animation: pulse 1s infinite; }
+        .status-success { background-color: var(--success-color); }
+        .status-fail { background-color: var(--accent-color); }
         .modal {
             display: none;
             position: fixed;
@@ -241,32 +290,33 @@
         }
         #globalMsgModal .modal-content { width: 480px; }
         #backendModal { z-index: 1000; } 
-        #auditModal { z-index: 2000; } 
+        #auditModal { z-index: 2000; }
         #globalMsgModal { z-index: 10005; } 
+
+        .summary-report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+            box-sizing: border-box;
+        }
         .summary-mini-table {
             width: 100%;
             margin-top: 5px;
             border-collapse: collapse;
+            table-layout: fixed;
+            word-break: break-all;
         }
         .summary-mini-table th, .summary-mini-table td {
-            padding: 6px 10px;
-            font-size: 12px;
+            padding: 8px 10px;
+            font-size: 13px;
             border: 1px solid #e2e8f0;
+            text-overflow: ellipsis;
+            overflow: hidden;
         }
         .summary-mini-table th { background: #edf2f7; color: #4a5568; }
-        
-        /* 🎯 優化 2：動態生成業績匯總響應式柵格系統，手機平板自動向下流動堆疊，決不爆版 */
-        .summary-report-grid {
-            display: flex;
-            flex-direction: row;
-            gap: 20px;
-            flex-wrap: wrap; /* 強制流動折行 */
-            width: 100%;
-        }
-        .summary-report-col {
-            flex: 1;
-            min-width: 280px; /* 保證手機下不被擠壓扁掉 */
-        }
+        .summary-mini-table th:nth-child(1) { width: 65%; }
+        .summary-mini-table th:nth-child(2) { width: 35%; }
 
         @media screen and (max-width: 850px) {
             body { padding: 10px; }
@@ -282,7 +332,6 @@
             #rangeSearchZone { flex-direction: column; align-items: stretch; gap: 12px !important; }
             #rangeSearchZone div { flex-direction: column; align-items: stretch; width: 100%; }
             #rangeSearchZone input { width: 100% !important; }
-            .summary-report-grid { flex-direction: column; gap: 15px; }
         }
     </style>
 </head>
@@ -535,18 +584,18 @@
                 <div id="viewSummaryZone" style="display:none;">
                     <h3>📊 當日營業額業績統計匯總 (單日回報結構化數據)</h3>
                     <div class="summary-report-grid">
-                        <div class="summary-report-col">
-                            <h4>🎫 各票種累計銷售張數</h4>
+                        <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
+                            <h4 style="margin:0 0 8px 0; color:var(--primary-color);">🎫 各票種累計銷售張數</h4>
                             <table class="summary-mini-table"><thead><tr><th>票券名稱</th><th>已售總張數</th></tr></thead><tbody id="sumTicketTableBody"></tbody></table>
                         </div>
-                        <div class="summary-report-col">
-                            <h4>🛍️ 各周邊商品累積銷售量</h4>
+                        <div style="background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
+                            <h4 style="margin:0 0 8px 0; color:var(--success-color);">🛍️ 各周邊商品累積銷售量</h4>
                             <table class="summary-mini-table"><thead><tr><th>商品品名</th><th>已售總數量</th></tr></thead><tbody id="sumGoodsTableBody"></tbody></table>
                         </div>
                     </div>
-                    <div style="margin-top: 25px; width: 100%;">
-                        <h4>🎬 各影片主題累積體驗人數 (載客總人頭)</h4>
-                        <div class="table-responsive" style="max-width: 500px;"><table class="summary-mini-table"><thead><tr><th>播映影片項目</th><th>總體驗人數</th></tr></thead><tbody id="sumFilmTableBody"></tbody></table></div>
+                    <div style="margin-top: 20px; width: 100%; background:#f8fafc; padding:12px; border-radius:6px; border:1px solid #e2e8f0;">
+                        <h4 style="margin:0 0 8px 0; color:#2b6cb0;">🎬 各影片主題累積體驗人數 (載客總人頭)</h4>
+                        <div class="table-responsive" style="max-width: 550px;"><table class="summary-mini-table"><thead><tr><th>播映影片項目</th><th>總體驗人數</th></tr></thead><tbody id="sumFilmTableBody"></tbody></table></div>
                     </div>
                 </div>
 
@@ -573,12 +622,15 @@ const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwW2mll5UDELffjZ4G
 let isSyncing = false; 
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["長安之上主題影片", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
+let confirmCallback = null;
 
+// 第一層網頁大門：僅限 amy_chung 與 volare 兩組固定帳密
 let initialLoginDatabase = JSON.parse(localStorage.getItem('volare_initial_login_db')) || {
     "amy_chung@brogentglobal.com": "5372858",
     "volare": "42646262"
 };
 
+// 第二層控制後台：一對一獨立配對帳密，由 amy_chung 統一管理
 let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || { 
     "amy_chung@brogentglobal.com": "5372858", 
     "tailong-pos": "42646262" 
@@ -604,7 +656,7 @@ let vendorDatabase = JSON.parse(localStorage.getItem('volare_vendor_db_v1')) || 
 };
 
 let systemStorage = {};
-let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null; let confirmCallback = null;
+let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null;
 let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
 
 const todayStr = new Date().toISOString().split('T')[0];
@@ -614,6 +666,9 @@ rangeQueryStart = todayStr; rangeQueryEnd = todayStr;
 
 systemStorage = JSON.parse(localStorage.getItem('volare_pos_data_v13')) || {};
 initStaticDropdowns();
+
+document.getElementById('gatePass').addEventListener('keypress', function(e) { if(e.key === 'Enter') preLoginSyncAndAttempt(); });
+document.getElementById('gateUser').addEventListener('keypress', function(e) { if(e.key === 'Enter') preLoginSyncAndAttempt(); });
 
 function calculateTicketPeople(type, qty) {
     if (ticketTypeDatabase[type]) {
@@ -637,8 +692,23 @@ function toggleLoginButtonState(disable, text) {
     if (btn) { btn.disabled = disable; btn.innerText = text; btn.style.background = disable ? "#95a5a6" : "var(--primary-color)"; }
 }
 
+// ===== 全域提示彈窗系統（先前版本缺失，現補回） =====
+function showMsg(title, body, hasConfirm = false, callback = null) {
+    document.getElementById('globalMsgTitle').innerText = title;
+    document.getElementById('globalMsgTitle').style.color = (title.includes("警告") || title.includes("超載") || title.includes("撞片") || title.includes("清除") || title.includes("確認")) ? "var(--accent-color)" : "var(--warning-color)";
+    document.getElementById('globalMsgBody').innerHTML = body;
+    let footer = document.getElementById('globalMsgFooter'); footer.innerHTML = '';
+    if (hasConfirm) {
+        confirmCallback = callback;
+        footer.innerHTML = `<button onclick="triggerConfirm(true)" style="background:var(--success-color); width:90px; margin-right:10px;">是</button><button onclick="triggerConfirm(false)" style="background:#95a5a6; width:90px;">否</button>`;
+    } else {
+        footer.innerHTML = `<button onclick="closeMsgModal()" style="width:100px; background:var(--primary-color);">確認</button>`;
+    }
+    document.getElementById('globalMsgModal').style.display = 'block';
+}
 function closeMsgModal() { document.getElementById('globalMsgModal').style.display = 'none'; }
 function triggerConfirm(result) { closeMsgModal(); if (confirmCallback) confirmCallback(result); }
+
 function getActiveDate() { return document.getElementById('currentDate').value; }
 function initDateKey(date) { if (!systemStorage[date]) { systemStorage[date] = { tickets: [], goods: [] }; } }
 
@@ -659,12 +729,7 @@ function preLoginSyncAndAttempt() {
         .then(res => res.json())
         .then(resData => {
             clearTimeout(timeoutId); 
-            if (resData && !resData.error) {
-                if (resData.config) unpackCloudConfig(resData.config);
-                if (resData.sales) smartMergeSales(resData.sales); 
-                localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
-                setSyncIndicator('success'); executeActualLoginLogic(); 
-            } else { throw new Error("格式錯誤"); }
+            if (resData && !resData.error) { unpackCloudConfig(resData.config); smartMergeSales(resData.sales); localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); setSyncIndicator('success'); executeActualLoginLogic(); } else { throw new Error("格式錯誤"); }
         })
         .catch(err => {
             clearTimeout(timeoutId); setSyncIndicator('fail'); toggleLoginButtonState(false, "登入解鎖系統");
@@ -685,11 +750,7 @@ function executeMasterClearDaySales() {
     let date = getActiveDate();
     let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong>${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？`;
     showMsg('【清除資料二次確認】', clearConfirmHtml, true, function(approved) {
-        if (approved) {
-            initDateKey(date); systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; 
-            pushLog(`最高管理者執行清除：抹除 ${date} 營運明細`); saveAndRender(); 
-            showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！`);
-        }
+        if (approved) { initDateKey(date); systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; pushLog(`最高管理者執行清除：抹除 ${date} 營運明細`); saveAndRender(); showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！`); }
     });
 }
 
@@ -699,7 +760,7 @@ function pullFromCloud(forceSync = false) {
     if (isSyncing && !forceSync) return; setSyncIndicator('syncing');
     fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
         if (isSyncing && !forceSync) return;
-        if(resData && !resData.error) { if (resData.config) unpackCloudConfig(resData.config); if (resData.sales) smartMergeSales(resData.sales); localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); }
+        if(resData && !resData.error) { unpackCloudConfig(resData.config); smartMergeSales(resData.sales); localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); }
         setSyncIndicator('success'); loadDateData();
     }).catch(err => { setSyncIndicator('fail'); loadDateData(); });
 }
@@ -760,8 +821,7 @@ function initStaticDropdowns() {
     const gVendSelect = document.getElementById('goodsMemberId'); gVendSelect.innerHTML = '';
     for(let vId in vendorDatabase) {
         let textToShow = (vId === "--") ? "無" : `${vId} [${vendorDatabase[vId]}]`;
-        let optionHtml = `<option value="${vId}">${textToShow}</option>`;
-        tVendSelect.innerHTML += optionHtml; gVendSelect.innerHTML += optionHtml;
+        let optionHtml = `<option value="${vId}">${textToShow}</option>`; tVendSelect.innerHTML += optionHtml; gVendSelect.innerHTML += optionHtml;
     }
     syncTicketPrice(); syncGoodsPrice();
 }
@@ -770,7 +830,6 @@ function syncTicketPrice() {
     let tName = document.getElementById('ticketType').value;
     if(ticketTypeDatabase[tName] !== undefined) { let p = typeof ticketTypeDatabase[tName] === 'object' ? ticketTypeDatabase[tName].price : ticketTypeDatabase[tName]; document.getElementById('ticketPrice').value = p; }
 }
-// 同步單價
 function syncGoodsPrice() {
     let barcode = document.getElementById('goodsType').value;
     if(goodsDatabase[barcode]) document.getElementById('goodsPriceShow').value = goodsDatabase[barcode].price;
@@ -842,12 +901,25 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         let barcode = this.value.trim();
-        if (goodsDatabase[barcode]) { switchForm('Goods'); document.getElementById('goodsType').value = barcode; syncGoodsPrice(); document.getElementById('goodsQty').focus(); } else { showMsg('【提醒】', "此商品條碼尚未在後台建立項目！"); }
+        if (goodsDatabase[barcode]) {
+            switchForm('Goods'); 
+            document.getElementById('goodsType').value = barcode; 
+            syncGoodsPrice();
+            document.getElementById('goodsQty').focus(); 
+        } else { showMsg('【提醒】', "此商品條碼尚未在後台建立項目！"); }
         this.value = ''; e.preventDefault();
     }
 });
 
-function openBackendModal() { document.getElementById('backendModal').style.display = 'block'; document.getElementById('backendAuthZone').style.display = 'block'; document.getElementById('backendControlZone').style.display = 'none'; }
+// ===== 後台彈窗開啟（先前版本缺失，現補回） =====
+function openBackendModal() {
+    document.getElementById('backendModal').style.display = 'block';
+    document.getElementById('backendAuthZone').style.display = 'block';
+    document.getElementById('backendControlZone').style.display = 'none';
+    document.getElementById('backendOperator').value = '';
+    document.getElementById('backendPassword').value = '';
+}
+
 function verifyBackendPassword() {
     let operator = document.getElementById('backendOperator').value.trim(); let inputPass = document.getElementById('backendPassword').value; if(!operator) { showMsg('【提醒】', "請輸入操作人員帳號！"); return; }
     if (staffDatabase[operator] && staffDatabase[operator] === inputPass) { currentOperatorName = operator; unlockBackendControl(); pushLog("進入管理後台"); } else { showMsg('【提醒】', "帳號或後台密碼錯誤，拒絕通行！"); }
@@ -855,9 +927,11 @@ function verifyBackendPassword() {
 
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
+    // 僅最高權限 amy_chung 才能看到帳號管理相關分頁，一般同仁完全看不到
     if(currentOperatorName === 'amy_chung@brogentglobal.com') { document.getElementById('masterClearDataZone').style.display = 'block'; document.getElementById('bTabMasterUsers').style.display = 'inline-block'; document.getElementById('bTabUsers').style.display = 'inline-block'; } 
     else { document.getElementById('masterClearDataZone').style.display = 'none'; document.getElementById('bTabMasterUsers').style.display = 'none'; document.getElementById('bTabUsers').style.display = 'none'; }
     document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentOperatorName === 'amy_chung@brogentglobal.com' ? '最高權限主管' : '一般一線使用者'})`;
+    switchBackendTab('Prog');
     renderBackendLists(); renderLogBox(); renderStaffList();
 }
 
@@ -890,7 +964,7 @@ function submitNewVendor() {
 
 function deleteVendor(vId) {
     if(vId === "--") return showMsg('【提醒】', "預設空值代碼不允許刪除。");
-    showMsg('【廠商註銷確認】', `確定要將合作代碼【${vId}】從數據庫中抹除嗎？`, true, function(approved) { if(approved) { delete vendorDatabase[vId]; pushLog(`移慢了廠商代碼: ${vId}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); } });
+    showMsg('【廠商註銷確認】', `確定要將合作代碼【${vId}】從數據庫中抹除嗎？`, true, function(approved) { if(approved) { delete vendorDatabase[vId]; pushLog(`移除了廠商代碼: ${vId}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); } });
 }
 
 function deleteStaffAccountByAcc(acc) {
@@ -908,45 +982,56 @@ function renderStaffList() {
     document.querySelectorAll('.btn-del-gate').forEach(btn => { btn.onclick = function() { deleteMasterGateByAcc(this.getAttribute('data-acc')); }; });
 }
 
-/* 🎯 優化 5：前台選單位置上下移動調度核心功能 */
 function moveProgramOrder(idx, direction) {
-    let targetIdx = idx + direction;
-    if (targetIdx < 0 || targetIdx >= programList.length) return;
-    let temp = programList[idx];
-    programList[idx] = programList[targetIdx];
-    programList[targetIdx] = temp;
-    pushLog(`調整影片節目順序：${temp}`);
-    renderBackendLists(); initStaticDropdowns(); saveAndRender();
+    let targetIdx = idx + direction; if (targetIdx < 0 || targetIdx >= programList.length) return;
+    let temp = programList[idx]; programList[idx] = programList[targetIdx]; programList[targetIdx] = temp;
+    pushLog(`調整影片節目順序：${temp}`); renderBackendLists(); initStaticDropdowns(); saveAndRender();
 }
 
 function moveTicketOrder(tName, direction) {
-    let keys = Object.keys(ticketTypeDatabase);
-    let idx = keys.indexOf(tName);
-    let targetIdx = idx + direction;
-    if (targetIdx < 0 || targetIdx >= keys.length) return;
-    
-    let newDb = {};
-    keys.forEach((key, kIdx) => {
-        if (kIdx === targetIdx && direction === -1) newDb[tName] = ticketTypeDatabase[tName];
-        if (key !== tName) newDb[key] = ticketTypeDatabase[key];
-        if (kIdx === targetIdx && direction === 1) newDb[tName] = ticketTypeDatabase[tName];
-    });
-    ticketTypeDatabase = newDb;
-    pushLog(`調整票種選單順序：${tName}`);
-    renderBackendLists(); initStaticDropdowns(); saveAndRender();
+    let keys = Object.keys(ticketTypeDatabase); let idx = keys.indexOf(tName); let targetIdx = idx + direction; if (targetIdx < 0 || targetIdx >= keys.length) return;
+    let newDb = {}; keys.forEach((key, kIdx) => { if (kIdx === targetIdx && direction === -1) newDb[tName] = ticketTypeDatabase[tName]; if (key !== tName) newDb[key] = ticketTypeDatabase[key]; if (kIdx === targetIdx && direction === 1) newDb[tName] = ticketTypeDatabase[tName]; });
+    ticketTypeDatabase = newDb; pushLog(`調整票種選單順序：${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender();
 }
+
+// ===== 影片節目維護（先前版本缺失，現補回） =====
+function submitNewProgram() {
+    let val = document.getElementById('newProgName').value.trim();
+    if(val) { programList.push(val); pushLog(`新增影片: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+    else { showMsg('【提醒】', "請輸入影片名稱！"); }
+}
+function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); pushLog(`刪除影片: ${old}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+
+// ===== 票種維護（先前版本缺失，現補回） =====
+function submitNewTicket() {
+    let val = document.getElementById('newTicketName').value.trim(); let defaultPrice = parseInt(document.getElementById('newTicketPriceDefault').value) || 0;
+    let defaultSeats = parseFloat(document.getElementById('newTicketSeatsDefault').value); if (isNaN(defaultSeats)) defaultSeats = 1;
+    if(val) { ticketTypeDatabase[val] = {price: defaultPrice, seats: defaultSeats}; pushLog(`變更票種: ${val} ($${defaultPrice} / ${defaultSeats}人次)`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; document.getElementById('newTicketSeatsDefault').value = '1'; renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+    else { showMsg('【提醒】', "請輸入票種名稱！"); }
+}
+function deleteTicket(tName) { delete ticketTypeDatabase[tName]; pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+
+// ===== 周邊商品維護（先前版本缺失，現補回） =====
+function submitNewGoods() {
+    let bc = document.getElementById('newGBarcode').value.trim(); let name = document.getElementById('newGName').value.trim(); let price = parseInt(document.getElementById('newGPrice').value);
+    let initStock = parseInt(document.getElementById('newGInit').value) || 0; let safety = parseInt(document.getElementById('newGSafety').value) || 0;
+    if(bc && name && price) {
+        goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety };
+        pushLog(`更新周邊: [${bc}] ${name}`); document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
+        renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊資料配置成功！");
+    } else { showMsg('【提醒】', "請填寫完整欄位！"); }
+}
+function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
 
 function renderBackendLists() {
     let pList = document.getElementById('backendProgList'); pList.innerHTML = '';
     programList.forEach((p, idx) => { 
-        // 🎯 增加移動按鈕
         let moveUpBtn = idx > 0 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveProgramOrder(${idx}, -1)">⬆️</button>` : '';
         let moveDownBtn = idx < programList.length - 1 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveProgramOrder(${idx}, 1)">⬇️</button>` : '';
         pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div></div>`; 
     });
     
-    let tList = document.getElementById('backendTicketList'); tList.innerHTML = '';
-    let tKeys = Object.keys(ticketTypeDatabase);
+    let tList = document.getElementById('backendTicketList'); tList.innerHTML = ''; let tKeys = Object.keys(ticketTypeDatabase);
     tKeys.forEach((tName, idx) => { 
         let seats = typeof ticketTypeDatabase[tName] === 'object' ? (ticketTypeDatabase[tName].seats !== undefined ? ticketTypeDatabase[tName].seats : 1) : 1;
         let price = typeof ticketTypeDatabase[tName] === 'object' ? (ticketTypeDatabase[tName].price || 0) : ticketTypeDatabase[tName];
@@ -963,22 +1048,16 @@ function renderBackendLists() {
 }
 
 function switchForm(form) {
-    document.getElementById('formTicket').style.display = form === 'Ticket' ? 'block' : 'none';
-    document.getElementById('formGoods').style.display = form === 'Goods' ? 'block' : 'none';
-    document.getElementById('tabTicket').classList.toggle('active', form === 'Ticket');
-    document.getElementById('tabGoods').classList.toggle('active', form === 'Goods');
+    document.getElementById('formTicket').style.display = form === 'Ticket' ? 'block' : 'none'; document.getElementById('formGoods').style.display = form === 'Goods' ? 'block' : 'none';
+    document.getElementById('tabTicket').classList.toggle('active', form === 'Ticket'); document.getElementById('tabGoods').classList.toggle('active', form === 'Goods');
 }
 
 function switchView(view) {
     currentView = view; const views = ['Day', 'Summary', 'Session', 'Stock', 'Month'];
     views.forEach(v => { const tabEl = document.getElementById('viewTab' + v); if (tabEl) tabEl.classList.toggle('active', v === view); });
-    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none'; 
-    document.getElementById('viewSummaryZone').style.display = view === 'Summary' ? 'block' : 'none';
-    document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none'; 
-    document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none'; 
-    document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
-    document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; 
-    loadDateData(); 
+    document.getElementById('viewDayZone').style.display = view === 'Day' ? 'block' : 'none'; document.getElementById('viewSummaryZone').style.display = view === 'Summary' ? 'block' : 'none';
+    document.getElementById('viewSessionZone').style.display = view === 'Session' ? 'block' : 'none'; document.getElementById('viewStockZone').style.display = view === 'Stock' ? 'block' : 'none'; document.getElementById('viewMonthZone').style.display = view === 'Month' ? 'block' : 'none';
+    document.getElementById('rangeSearchZone').style.display = view === 'Month' ? 'flex' : 'none'; loadDateData(); 
 }
 
 function loadDateData() {
@@ -988,8 +1067,7 @@ function loadDateData() {
     if (systemStorage[date]) {
         if(systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(x => { 
-                tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); 
-                let actualExperiences = calculateRealExperienceCount(x.type, x.qty);
+                tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); let actualExperiences = calculateRealExperienceCount(x.type, x.qty);
                 rTicketTypeMap[x.type] = (rTicketTypeMap[x.type] || 0) + x.qty; rProgramPeopleMap[x.program] = (rProgramPeopleMap[x.program] || 0) + actualExperiences;
             });
         }
@@ -997,12 +1075,9 @@ function loadDateData() {
     }
     document.getElementById('dayTicketSum').innerText = `$ ${tSum.toLocaleString()} (${tPeople} 人次)`; document.getElementById('dayGoodsSum').innerText = `$ ${gSum.toLocaleString()}`; document.getElementById('dayTotalSum').innerText = `$ ${(tSum + gSum).toLocaleString()}`;
 
-    // 📊 當日數據匯總表格動態生成
     let sumTBody = document.getElementById('sumTicketTableBody'); sumTBody.innerHTML = '';
     for(let k in rTicketTypeMap) {
-        // 🎯 優化 1：【一般雙片票】在此業績匯總報表中，銷售總張數自動除以 2 顯示
-        let numToShow = rTicketTypeMap[k];
-        if (k === "一般雙片票") { numToShow = numToShow / 2; }
+        let numToShow = rTicketTypeMap[k]; if (k === "一般雙片票") { numToShow = numToShow / 2; }
         sumTBody.innerHTML += `<tr><td><strong>${k}</strong></td><td><span style='color:var(--primary-color); font-weight:bold;'>${numToShow} 張</span></td></tr>`;
     }
     if(Object.keys(rTicketTypeMap).length === 0) sumTBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無票券銷售</td></tr>';
@@ -1037,7 +1112,7 @@ function loadDateData() {
         }
     } else if (currentView === 'Session') {
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {}; let kartQtyTotal = 0; let kartAmountTotal = 0;
-        if (systemStorage[date] && systemStorage[date].tickets) { rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--") { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty); } }; }
+        if (systemStorage[date] && systemStorage[date].tickets) { systemStorage[date].tickets.forEach(rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--") { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty); } }); }
         let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
         let autoRowNo = 1; sortedSessions.forEach(time => { let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8; sBody.innerHTML += `<tr><td><strong style='color:#718096;'>No. ${autoRowNo}</strong></td><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`; autoRowNo++; });
         if (kartQtyTotal > 0) { sBody.innerHTML += `<tr style="background:#fffbeb; border-top:2px solid #fef3c7;"><td><span style='color:#b45309;'>🏎️ 賽車</span></td><td>--</td><td><span style="color:#d97706; font-weight:bold;">隨到隨開場：極速賽車項目</span></td><td style="font-weight:bold; color:#b45309;">${kartQtyTotal} 人次</td><td>--</td><td><span style="color:#b45309; font-weight:bold;">當日累計收：$ ${kartAmountTotal.toLocaleString()}</span></td></tr>`; }
@@ -1050,19 +1125,41 @@ function loadDateData() {
     }
 }
 
+function openEditModal(type, id, itemDate) {
+    currentEditTarget = { type: type, id: id, date: itemDate }; let body = document.getElementById('modalFormBody'); body.innerHTML = '';
+    if (type === 'Ticket') {
+        let rec = systemStorage[itemDate].tickets.find(t => t.id === id);
+        body.innerHTML = `<div class="form-group"><label>項目名稱：</label><input type="text" value="${rec.program} - ${rec.type} (${itemDate})" disabled style="background:#eee;"></div><div class="form-group"><label>修正後張數：</label><input type="number" id="modTicketQty" value="${rec.qty}"></div><div class="form-group"><label>修正後單價 ($)：</label><input type="number" id="modTicketPrice" value="${rec.price}"></div><div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div><div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>`;
+    } else {
+        let rec = systemStorage[itemDate].goods.find(g => g.id === id);
+        body.innerHTML = `<div class="form-group"><label>商品名稱：</label><input type="text" value="${rec.name} (${itemDate})" disabled style="background:#eee;"></div><div class="form-group"><label>修正後數量：</label><input type="number" id="modGoodsQty" value="${rec.qty}"></div><div class="form-group"><label>修正後折扣：</label><input type="number" id="modGoodsDiscount" value="${rec.discount}" step="0.01"></div><div class="form-group"><label>填寫人姓名 (必填)：</label><input type="text" id="modUser" placeholder="請填寫姓名"></div><div class="form-group"><label>變更理由與備註 (必填)：</label><input type="text" id="modReason" placeholder="請填寫成因"></div>`;
+    }
+    document.getElementById('auditModal').style.display = 'block';
+}
+
+function submitModalEdit() {
+    let t = currentEditTarget; let user = document.getElementById('modUser').value.trim(); let reason = document.getElementById('modReason').value.trim(); if(!user || !reason) { showMsg('【提醒】', "填寫人與理由為必填！"); return; }
+    if (t.type === 'Ticket') { let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id); rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value); rec.amount = rec.qty * rec.price; rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; } 
+    else { let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value); rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; }
+    closeModal('auditModal'); saveAndRender();
+}
+
 function exportRangeData() {
-    let start = document.getElementById('expStart').value; let end = document.getElementById('expEnd').value; if(!start || !end || start > end) { showMsg('【提醒】', "請選取正確的日期導出區間！"); return; }
+    let start = document.getElementById('expStart').value; let end = document.getElementById('expEnd').value;
+    if(!start || !end || start > end) { showMsg('【提醒】', "請選取正確的日期導出區間！"); return; }
     let csvContent = "\uFEFF"; csvContent += `VOLARE 營運智慧整合區間報表,查詢區間:,${start} 至 ${end}\n\n=== 🎫 票券銷售累計明細 ===\n營業日期,輸入時間,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,會員編號/廠商代碼,內部審計簽核\n`;
     let allDates = Object.keys(systemStorage).sort();
-    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) { systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.memberId === '--'?'無':x.memberId},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; }); } });
+    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) { systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.memberId || '--'},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; }); } });
     csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,輸入時間,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,會員編號/廠商代碼,特殊折扣說明與填寫人,內部審計改單簽核\n";
-    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0; csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId === '--'?'無':g.memberId},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`; }); } });
+    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0; csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId || '--'},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`; }); } });
     csvContent += "\n=== 📊 每日營業加總日報 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
     allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d]) { let dT = 0, dP = 0, dG = 0; if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += calculateTicketPeople(x.type, x.qty); }); if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); }); csvContent += `${d},${dT},${dP},${dG},${dT + dG}\n`; } });
     csvContent += "\n=== 📦 周邊商品截止此區間總匯盤點表 ===\n國際條碼,商品品名,商品單價,初始庫存,截止累計銷售量,當前剩餘庫存,安全庫存水位,安全預警狀態\n";
-    let rangeGoodsSales = {}; allDates.forEach(d => { if(d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); } });
+    let rangeGoodsSales = {};
+    allDates.forEach(d => { if(d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); } });
     for(let barcode in goodsDatabase) { let item = goodsDatabase[barcode]; let soldQty = rangeGoodsSales[barcode] || 0; let remain = item.initStock - soldQty; csvContent += `${barcode},${item.name},${item.price},${item.initStock},${soldQty},${remain},${item.safetyStock},${remain < item.safetyStock ? "庫存不足" : "庫存安全"}\n`; }
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `VOLARE_整合營運總匯報表_${start}_至_${end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `VOLARE_整合營運總匯報表_${start}_至_${end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
 document.addEventListener('keypress', function(e) {
