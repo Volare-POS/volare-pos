@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v55</title>
+    <title>VOLARE 智慧雲端安全營運系統 v56</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -750,7 +750,8 @@ function calculateTicketPeople(type, qty) {
 }
 
 function calculateRealExperienceCount(type, qty) {
-    return calculateTicketPeople(type, qty); // 完全採用後台設定的 seats 值，與座位安全計算同一套邏輯，避免重複疊加
+    if (type.includes("極速賽車")) return qty; // 賽車不佔影廳座位（seats=0），但體驗人數仍須照張數正常累計，不可沿用座位安全的 0 值
+    return calculateTicketPeople(type, qty); // 其餘票種採用後台設定的 seats 值
 }
 
 function toggleLoginButtonState(disable, text) {
