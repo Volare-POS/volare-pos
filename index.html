@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v45</title>
+    <title>VOLARE 智慧雲端安全營運系統 v46</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -302,8 +302,10 @@
         }
         .summary-mini-table {
             width: 100%;
+            max-width: 100%;
             margin-top: 5px;
             border-collapse: collapse;
+            table-layout: fixed;
         }
         .summary-mini-table th, .summary-mini-table td {
             padding: 8px 10px;
@@ -311,11 +313,16 @@
             border: 1px solid #e2e8f0;
             word-break: break-word;
             white-space: normal;
+            overflow-wrap: break-word;
         }
         .summary-mini-table th { background: #edf2f7; color: #4a5568; }
-        .summary-mini-table td:last-child, .summary-mini-table th:last-child {
+        .summary-mini-table th:nth-child(1), .summary-mini-table td:nth-child(1) {
+            width: 80%;
+        }
+        .summary-mini-table th:nth-child(2), .summary-mini-table td:nth-child(2) {
+            width: 20%;
             white-space: nowrap;
-            width: 1%;
+            text-align: center;
         }
 
         @media screen and (max-width: 850px) {
@@ -377,8 +384,8 @@
         <div class="modal-header">⚙️ VOLARE 營運後台核心設定中心</div>
         
         <div id="backendAuthZone">
-            <div class="form-group"><label>後台變更操作人員帳號 (必填)：</label><input type="text" id="backendOperator" placeholder=""></div>
-            <div class="form-group"><label>請輸入管理員審查密碼：</label><input type="password" id="backendPassword" placeholder=""></div>
+            <div class="form-group"><label>帳號：</label><input type="text" id="backendOperator" placeholder=""></div>
+            <div class="form-group"><label>密碼：</label><input type="password" id="backendPassword" placeholder=""></div>
             <button onclick="verifyBackendPassword()">確認驗證</button>
         </div>
 
@@ -390,8 +397,8 @@
                 <div class="tab" id="bTabTicket" onclick="switchBackendTab('Ticket')">營業票種維護</div>
                 <div class="tab" id="bTabGoods" onclick="switchBackendTab('Goods')">周邊商品中心</div>
                 <div class="tab" id="bTabVend" onclick="switchBackendTab('Vend')">🤝 會員廠商維護</div>
-                <div class="tab" id="bTabMasterUsers" onclick="switchBackendTab('MasterUsers')" style="display:none; background:#fee2e2; color:#b91c1c;">🔐 大門登入管理</div>
-                <div class="tab" id="bTabUsers" onclick="switchBackendTab('Users')" style="display:none; background:#ebf8ff; color:#2b6cb0;">👥 營業帳號名冊</div>
+                <div class="tab" id="bTabMasterUsers" onclick="switchBackendTab('MasterUsers')" style="display:none; background:#fee2e2; color:#b91c1c;">🔐 網站權限管理</div>
+                <div class="tab" id="bTabUsers" onclick="switchBackendTab('Users')" style="display:none; background:#ebf8ff; color:#2b6cb0;">👥 控制後台登入權限</div>
                 <div class="tab" id="bTabPass" onclick="switchBackendTab('Pass')">📜 系統安全專區</div>
             </div>
 
@@ -407,7 +414,7 @@
                     <div class="form-row" style="margin-bottom:5px;">
                         <input type="text" id="newTicketName" placeholder="請輸入票種名稱" style="flex:2;">
                         <input type="number" id="newTicketPriceDefault" placeholder="預設單價" style="flex:1;">
-                        <input type="number" id="newTicketSeatsDefault" placeholder="計載人次" value="1" min="0" step="0.5" style="flex:1;">
+                        <input type="number" id="newTicketSeatsDefault" placeholder="人次計算" min="0" step="0.5" style="flex:1;">
                     </div>
                     <button onclick="submitNewTicket()" style="background:var(--success-color);">建立或覆蓋票種基本檔</button>
                 </div>
@@ -440,8 +447,8 @@
                 <h3 style="color:#b91c1c;">🔐 網頁第一層大門管理 (最高權限專屬)</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="masterGateAcc" placeholder="請輸入大門登入帳號" style="flex:1;">
-                        <input type="text" id="masterGatePass" placeholder="請輸入大門密碼" style="flex:1;">
+                        <input type="text" id="masterGateAcc" placeholder="帳號" style="flex:1;">
+                        <input type="text" id="masterGatePass" placeholder="密碼" style="flex:1;">
                         <button onclick="submitMasterGateAccount()" style="flex:1; background:var(--accent-color);">更新大門名冊</button>
                     </div>
                 </div>
@@ -453,8 +460,8 @@
                 <h3>👥 新增一線同仁一對一獨立配對認證帳號</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="newStaffAccount" placeholder="請輸入員工帳號" style="flex:1;">
-                        <input type="text" id="newStaffPassword" placeholder="請輸入員工專屬密碼" style="flex:1;">
+                        <input type="text" id="newStaffAccount" placeholder="帳號" style="flex:1;">
+                        <input type="text" id="newStaffPassword" placeholder="密碼" style="flex:1;">
                         <button onclick="submitNewStaffAccount()" style="flex:1; background:var(--success-color);">授權上架</button>
                     </div>
                 </div>
@@ -1006,7 +1013,7 @@ function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1
 function submitNewTicket() {
     let val = document.getElementById('newTicketName').value.trim(); let defaultPrice = parseInt(document.getElementById('newTicketPriceDefault').value) || 0;
     let defaultSeats = parseFloat(document.getElementById('newTicketSeatsDefault').value); if (isNaN(defaultSeats)) defaultSeats = 1;
-    if(val) { ticketTypeDatabase[val] = {price: defaultPrice, seats: defaultSeats}; pushLog(`變更票種: ${val} ($${defaultPrice} / ${defaultSeats}人次)`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; document.getElementById('newTicketSeatsDefault').value = '1'; renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+    if(val) { ticketTypeDatabase[val] = {price: defaultPrice, seats: defaultSeats}; pushLog(`變更票種: ${val} ($${defaultPrice} / ${defaultSeats}人次)`); document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceDefault').value = ''; document.getElementById('newTicketSeatsDefault').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
     else { showMsg('【提醒】', "請輸入票種名稱！"); }
 }
 function deleteTicket(tName) { delete ticketTypeDatabase[tName]; pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
@@ -1077,7 +1084,7 @@ function loadDateData() {
 
     let sumTBody = document.getElementById('sumTicketTableBody'); sumTBody.innerHTML = '';
     for(let k in rTicketTypeMap) {
-        let numToShow = rTicketTypeMap[k]; if (k === "一般雙片票") { numToShow = numToShow / 2; }
+        let numToShow = rTicketTypeMap[k]; if (k === "一般雙片票") { numToShow = Math.round(numToShow / 2); }
         sumTBody.innerHTML += `<tr><td><strong>${k}</strong></td><td><span style='color:var(--primary-color); font-weight:bold;'>${numToShow} 張</span></td></tr>`;
     }
     if(Object.keys(rTicketTypeMap).length === 0) sumTBody.innerHTML = '<tr><td colspan="2" style="color:#aaa;">今日尚無票券銷售</td></tr>';
@@ -1114,7 +1121,7 @@ function loadDateData() {
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {}; let kartQtyTotal = 0; let kartAmountTotal = 0;
         if (systemStorage[date] && systemStorage[date].tickets) { systemStorage[date].tickets.forEach(rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--") { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty); } }); }
         let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
-        let autoRowNo = 1; sortedSessions.forEach(time => { let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8; sBody.innerHTML += `<tr><td><strong style='color:#718096;'>No. ${autoRowNo}</strong></td><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`; autoRowNo++; });
+        let autoRowNo = 1; sortedSessions.forEach(time => { let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8; sBody.innerHTML += `<tr><td><strong style='color:#718096;'>${autoRowNo}</strong></td><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`; autoRowNo++; });
         if (kartQtyTotal > 0) { sBody.innerHTML += `<tr style="background:#fffbeb; border-top:2px solid #fef3c7;"><td><span style='color:#b45309;'>🏎️ 賽車</span></td><td>--</td><td><span style="color:#d97706; font-weight:bold;">隨到隨開場：極速賽車項目</span></td><td style="font-weight:bold; color:#b45309;">${kartQtyTotal} 人次</td><td>--</td><td><span style="color:#b45309; font-weight:bold;">當日累計收：$ ${kartAmountTotal.toLocaleString()}</span></td></tr>`; }
     } else if (currentView === 'Stock') {
         let stockBody = document.getElementById('stockTableBody'); stockBody.innerHTML = '';
