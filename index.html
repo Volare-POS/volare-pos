@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v48</title>
+    <title>VOLARE 智慧雲端安全營運系統 v50</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -1114,19 +1114,26 @@ function loadDateData() {
     document.getElementById('dayTicketSum').innerText = `$ ${tSum.toLocaleString()} (${tPeople} 人次)`; document.getElementById('dayGoodsSum').innerText = `$ ${gSum.toLocaleString()}`; document.getElementById('dayTotalSum').innerText = `$ ${(tSum + gSum).toLocaleString()}`;
 
     let sumTBody = document.getElementById('sumTicketTableBody'); sumTBody.innerHTML = '';
-    for(let k in rTicketTypeMap) {
+    let sortedTicketKeys = Object.keys(ticketTypeDatabase).filter(k => rTicketTypeMap[k] !== undefined);
+    Object.keys(rTicketTypeMap).forEach(k => { if (!sortedTicketKeys.includes(k)) sortedTicketKeys.push(k); }); // 涵蓋已售出但已從後台刪除的票種
+    sortedTicketKeys.forEach(k => {
         let numToShow = rTicketTypeMap[k]; if (k === "一般雙片票") { numToShow = Math.round(numToShow / 2); }
         sumTBody.innerHTML += `<div class="summary-list-item"><span class="item-name">${k}</span><span class="item-value" style="color:var(--primary-color);">${numToShow} 張</span></div>`;
-    }
-    if(Object.keys(rTicketTypeMap).length === 0) sumTBody.innerHTML = '<div class="summary-list-empty">今日尚無票券銷售</div>';
+    });
+    if(sortedTicketKeys.length === 0) sumTBody.innerHTML = '<div class="summary-list-empty">今日尚無票券銷售</div>';
 
     let sumGBody = document.getElementById('sumGoodsTableBody'); sumGBody.innerHTML = '';
-    for(let k in rGoodsMap) sumGBody.innerHTML += `<div class="summary-list-item"><span class="item-name">${k}</span><span class="item-value" style="color:var(--success-color);">${rGoodsMap[k]} 個</span></div>`;
-    if(Object.keys(rGoodsMap).length === 0) sumGBody.innerHTML = '<div class="summary-list-empty">今日尚無周邊銷售</div>';
+    let goodsOrderByName = Object.keys(goodsDatabase).map(bc => goodsDatabase[bc].name);
+    let sortedGoodsKeys = goodsOrderByName.filter(k => rGoodsMap[k] !== undefined);
+    Object.keys(rGoodsMap).forEach(k => { if (!sortedGoodsKeys.includes(k)) sortedGoodsKeys.push(k); }); // 涵蓋已售出但已從後台刪除的商品
+    sortedGoodsKeys.forEach(k => { sumGBody.innerHTML += `<div class="summary-list-item"><span class="item-name">${k}</span><span class="item-value" style="color:var(--success-color);">${rGoodsMap[k]} 個</span></div>`; });
+    if(sortedGoodsKeys.length === 0) sumGBody.innerHTML = '<div class="summary-list-empty">今日尚無周邊銷售</div>';
 
     let sumFBody = document.getElementById('sumFilmTableBody'); sumFBody.innerHTML = '';
-    for(let k in rProgramPeopleMap) { let isKart = k.includes("賽車"); sumFBody.innerHTML += `<div class="summary-list-item" ${isKart ? 'style="background:#fffbeb;"':''}><span class="item-name">${k}</span><span class="item-value" style="color:${isKart ? '#b45309':'#2b6cb0'};">${rProgramPeopleMap[k]} 人次</span></div>`; }
-    if(Object.keys(rProgramPeopleMap).length === 0) sumFBody.innerHTML = '<div class="summary-list-empty">今日尚無影片載客明細</div>';
+    let sortedFilmKeys = programList.filter(k => rProgramPeopleMap[k] !== undefined);
+    Object.keys(rProgramPeopleMap).forEach(k => { if (!sortedFilmKeys.includes(k)) sortedFilmKeys.push(k); }); // 涵蓋極速賽車與已從後台刪除的節目
+    sortedFilmKeys.forEach(k => { let isKart = k.includes("賽車"); sumFBody.innerHTML += `<div class="summary-list-item" ${isKart ? 'style="background:#fffbeb;"':''}><span class="item-name">${k}</span><span class="item-value" style="color:${isKart ? '#b45309':'#2b6cb0'};">${rProgramPeopleMap[k]} 人次</span></div>`; });
+    if(sortedFilmKeys.length === 0) sumFBody.innerHTML = '<div class="summary-list-empty">今日尚無影片載客明細</div>';
 
     if (currentView === 'Day') {
         let ticketBody = document.getElementById('ticketTableBody'); let goodsBody = document.getElementById('goodsTableBody'); ticketBody.innerHTML = ''; goodsBody.innerHTML = '';
