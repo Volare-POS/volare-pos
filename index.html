@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v51</title>
+    <title>VOLARE 智慧雲端安全營運系統 v52</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -698,7 +698,13 @@ let systemStorage = {};
 let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null;
 let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
 
-const todayStr = new Date().toISOString().split('T')[0];
+function getLocalDateString(d) {
+    let year = d.getFullYear();
+    let month = String(d.getMonth() + 1).padStart(2, '0');
+    let day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+const todayStr = getLocalDateString(new Date());
 document.getElementById('currentDate').value = todayStr;
 document.getElementById('expStart').value = todayStr; document.getElementById('expEnd').value = todayStr;
 rangeQueryStart = todayStr; rangeQueryEnd = todayStr;
