@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v40</title>
+    <title>VOLARE 智慧雲端安全營運系統 v41</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -270,12 +270,12 @@
     <div class="login-box">
         <h2 style="border:none; text-align:center; color:var(--primary-color); margin-bottom:20px;">🔒 VOLARE 智慧雲端系統</h2>
         <div class="form-group">
-            <label>初始連網帳號：</label>
-            <input type="text" id="gateUser" placeholder="請輸入核心連網帳號 (amy/volare)">
+            <label>登入帳號：</label>
+            <input type="text" id="gateUser" placeholder="請輸入登入帳號 (amy_chung@brogentglobal.com / volare)">
         </div>
         <div class="form-group" style="margin-bottom: 12px;">
-            <label>通行認證密碼：</label>
-            <input type="password" id="gatePass" placeholder="請輸入大門連網密碼">
+            <label>密碼：</label>
+            <input type="password" id="gatePass" placeholder="請輸入密碼">
         </div>
         <div id="loginErrorMsg" style="color:var(--accent-color); font-size:13px; font-weight:bold; margin-bottom:15px; text-align:center; display:none;"></div>
         <button id="btnLoginAction" onclick="preLoginSyncAndAttempt()" style="background:var(--primary-color); padding:12px; font-size:15px;">登入解鎖系統</button>
@@ -319,7 +319,7 @@
                 <div class="tab" id="bTabTicket" onclick="switchBackendTab('Ticket')">營業票種維護</div>
                 <div class="tab" id="bTabGoods" onclick="switchBackendTab('Goods')">周邊商品中心</div>
                 <div class="tab" id="bTabVend" onclick="switchBackendTab('Vend')">🤝 會員廠商維護</div>
-                <div class="tab" id="bTabMasterUsers" onclick="switchBackendTab('MasterUsers')" style="display:none; background:#fee2e2; color:#b91c1c;">🔐 初始門檻管理</div>
+                <div class="tab" id="bTabMasterUsers" onclick="switchBackendTab('MasterUsers')" style="display:none; background:#fee2e2; color:#b91c1c;">🔐 大門登入管理</div>
                 <div class="tab" id="bTabUsers" onclick="switchBackendTab('Users')" style="display:none; background:#ebf8ff; color:#2b6cb0;">👥 營業帳號名冊</div>
                 <div class="tab" id="bTabPass" onclick="switchBackendTab('Pass')">📜 系統安全專區</div>
             </div>
@@ -366,15 +366,15 @@
             </div>
 
             <div id="bZoneMasterUsers" style="display:none;">
-                <h3 style="color:#b91c1c;">🔐 網頁第一層初始連網帳密管理 (最高權限專屬)</h3>
+                <h3 style="color:#b91c1c;">🔐 網頁第一層初始大門管理 (最高權限專屬)</h3>
                 <div class="form-group">
                     <div class="form-row">
-                        <input type="text" id="masterGateAcc" placeholder="第一層大門帳號 (例: volare)" style="flex:1;">
-                        <input type="text" id="masterGatePass" placeholder="第一層大門密碼" style="flex:1;">
-                        <button onclick="submitMasterGateAccount()" style="flex:1; background:var(--accent-color);">更新初始大門名冊</button>
+                        <input type="text" id="masterGateAcc" placeholder="第一層登入帳號" style="flex:1;">
+                        <input type="text" id="masterGatePass" placeholder="密碼" style="flex:1;">
+                        <button onclick="submitMasterGateAccount()" style="flex:1; background:var(--accent-color);">更新大門名冊</button>
                     </div>
                 </div>
-                <h4 style="margin-top:15px;">目前連網獲准解鎖之大門鑰匙</h4>
+                <h4 style="margin-top:15px;">目前獲准解鎖大門之帳號名冊</h4>
                 <div id="backendInitialLoginList" style="max-height:150px; overflow-y:auto;"></div>
             </div>
 
@@ -394,7 +394,7 @@
             <div id="bZonePass" style="display:none;">
                 <div id="masterClearDataZone" style="display:none; background:#fee2e2; border: 2px dashed #f87171; padding:15px; border-radius:6px; margin-bottom:20px;">
                     <h4 style="color:#b91c1c; margin:0 0 8px 0;">☣️ 最高管理者特區：重置清空日誌紀錄</h4>
-                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將當日所有的登記明細完全清空歸零。限最高主管 amy 操作。</p>
+                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將當日所有的登記明細完全清空歸零。限最高主管 amy_chung@brogentglobal.com 操作。</p>
                     <button onclick="executeMasterClearDaySales()" class="btn-accent" style="padding:10px; width:auto; font-size:13px; margin-top:8px;">🚨 清除當日所有交易紀錄</button>
                 </div>
                 <h3 style="margin:0 0 10px 0;">📜 後台歷史人員異動操作紀錄</h3>
@@ -557,19 +557,22 @@
 </div>
 
 <script>
+// 🚀 核心歸位一：完美回補雲端總通路 API 變數，拔除底層死鎖
 const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwW2mll5UDELffjZ4G86NWDn6R7M8YzWuoWvqlL1qiye4ihl6b-LVJEh1kfOD3rhRQi/exec";
 
 let isSyncing = false; 
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
 let programList = JSON.parse(localStorage.getItem('volare_programs_v13')) || ["長安之上主題影片", "玩具星球", "勇闖侏儸紀", "地球保衛戰"];
 
+// 🚀 核心歸位二：精準修復連網大門鑰匙名冊。字眼對齊指定之【登入帳號】與【密碼】
 let initialLoginDatabase = JSON.parse(localStorage.getItem('volare_initial_login_db')) || {
-    "amy": "5372858",
+    "amy_chung@brogentglobal.com": "5372858",
     "volare": "42646262"
 };
 
+// 第二層控制後台人員一對一獨立配對資料庫
 let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || { 
-    "amy": "5372858", 
+    "amy_chung@brogentglobal.com": "5372858", 
     "tailong-pos": "42646262" 
 };
 
@@ -594,7 +597,7 @@ let vendorDatabase = JSON.parse(localStorage.getItem('volare_vendor_db_v1')) || 
 
 let systemStorage = {};
 let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null; let confirmCallback = null;
-let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
+let rangeQueryStart = ""; let rangeQueryEnd = "";
 
 const todayStr = new Date().toISOString().split('T')[0];
 document.getElementById('currentDate').value = todayStr;
@@ -657,7 +660,7 @@ function preLoginSyncAndAttempt() {
         })
         .catch(err => {
             clearTimeout(timeoutId); setSyncIndicator('fail'); toggleLoginButtonState(false, "登入解鎖系統");
-            errDiv.innerHTML = "❌ 雲端資料同步超時或被公司內網阻斷！<br><span style='font-size:12px;'>請確認後台部署版本。</span>";
+            errDiv.innerHTML = "❌ 雲端資料同步超時或被公司內網阻斷！<br><span style='font-size:12px;'>請確認 GAS 後台大腦是否正確建立新版本部署。</span>";
             errDiv.style.display = 'block';
         });
 }
@@ -671,7 +674,31 @@ function executeActualLoginLogic() {
         switchForm('Ticket'); 
         loadDateData(); pullFromCloud(true); 
         showMsg('【提醒】', `🔓 歡迎登入！\n解鎖帳號：${u}\n系統數據與設定檔已順利與 Google Sheets 聯動。`);
-    } else { toggleLoginButtonState(false, "登入解鎖系統"); errDiv.innerText = "❌ 初始連網帳號或通行密碼不正確，請重新輸入！"; errDiv.style.display = 'block'; }
+    } else { toggleLoginButtonState(false, "登入解鎖系統"); errDiv.innerText = "❌ 登入帳號或密碼不正確，請重新輸入！"; errDiv.style.display = 'block'; }
+}
+
+function executeMasterClearDaySales() {
+    let date = getActiveDate();
+    let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong>${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？`;
+    showMsg('【清除資料二次確認】', clearConfirmHtml, true, function(approved) {
+        if (approved) {
+            initDateKey(date); systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; 
+            pushLog(`最高管理者執行清除：抹除 ${date} 營運明細`); saveAndRender(); 
+            showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！`);
+        }
+    });
+}
+
+function showMsg(title, body, hasConfirm = false, callback = null) {
+    document.getElementById('globalMsgTitle').innerText = title;
+    document.getElementById('globalMsgTitle').style.color = title.includes("警告") || title.includes("超載") || title.includes("撞片") || title.includes("清除") ? "var(--accent-color)" : "var(--warning-color)";
+    document.getElementById('globalMsgBody').innerHTML = body;
+    let footer = document.getElementById('globalMsgFooter'); footer.innerHTML = '';
+    if (hasConfirm) {
+        confirmCallback = callback;
+        footer.innerHTML = `<button onclick="triggerConfirm(true)" style="background:var(--success-color); width:90px; margin-right:10px;">是</button><button onclick="triggerConfirm(false)" style="background:#95a5a6; width:90px;">否</button>`;
+    } else { footer.innerHTML = `<button onclick="closeMsgModal()" style="width:100px; background:var(--primary-color);">確認</button>`; }
+    document.getElementById('globalMsgModal').style.display = 'block';
 }
 
 function saveAndRender() { localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); loadDateData(); pushToCloud(); }
@@ -780,7 +807,6 @@ function syncTicketPrice() {
         document.getElementById('ticketPrice').value = p;
     }
 }
-// 價格同步
 function syncGoodsPrice() {
     let barcode = document.getElementById('goodsType').value;
     if(goodsDatabase[barcode]) document.getElementById('goodsPriceShow').value = goodsDatabase[barcode].price;
@@ -869,7 +895,7 @@ function checkAndWarnSafetyStock(barcode, incomingQty) {
     if (incomingQty >= 0) return; let salesNeeded = Math.abs(incomingQty); let totalSoldBefore = 0;
     for(let d in systemStorage) { if(systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { if(g.barcode === barcode && g.qty < 0) totalSoldBefore += Math.abs(g.qty); }); } }
     let item = goodsDatabase[barcode]; let expectedStock = item.initStock - (totalSoldBefore + salesNeeded);
-    if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫存預警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件！`);
+    if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件！`);
 }
 
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
@@ -886,6 +912,7 @@ document.getElementById('barcodeScanner').addEventListener('keypress', function(
 });
 
 function openBackendModal() { document.getElementById('backendModal').style.display = 'block'; document.getElementById('backendAuthZone').style.display = 'block'; document.getElementById('backendControlZone').style.display = 'none'; }
+
 function verifyBackendPassword() {
     let operator = document.getElementById('backendOperator').value.trim(); let inputPass = document.getElementById('backendPassword').value;
     if(!operator) { showMsg('【提醒】', "請輸入操作人員帳號！"); return; }
@@ -897,17 +924,17 @@ function verifyBackendPassword() {
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
     
-    // 🎯 ✅【人事資安死鎖修正點】一線同仁名冊（bTabUsers）大門鑰匙管理分頁同步鎖死！非 amy 帳號直接隱形！
-    if(currentOperatorName === 'amy') { 
+    // 🎯 ✅【人事最高防線死鎖】：大門帳密維護、員工清冊只對最高權限 amy_chung 解鎖！
+    if(currentOperatorName === 'amy_chung@brogentglobal.com') { 
         document.getElementById('masterClearDataZone').style.display = 'block';
         document.getElementById('bTabMasterUsers').style.display = 'inline-block';
-        document.getElementById('bTabUsers').style.display = 'inline-block'; // 只有 amy 能看見並新增同仁帳號
+        document.getElementById('bTabUsers').style.display = 'inline-block'; 
     } else { 
         document.getElementById('masterClearDataZone').style.display = 'none';
         document.getElementById('bTabMasterUsers').style.display = 'none';
-        document.getElementById('bTabUsers').style.display = 'none'; // 💥 一般員工後台強制沒收人事清冊！
+        document.getElementById('bTabUsers').style.display = 'none'; 
     }
-    document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentOperatorName === 'amy' ? '最高權限主管' : '一般一線使用者'})`;
+    document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentOperatorName === 'amy_chung@brogentglobal.com' ? '最高權限主管' : '一般一線使用者'})`;
     renderBackendLists(); renderLogBox(); renderStaffList();
 }
 
@@ -924,21 +951,21 @@ function submitNewStaffAccount() {
     if(acc && pas) {
         staffDatabase[acc] = pas; pushLog(`建立了新同仁獨立帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList(); saveAndRender(); 
         showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功獨立配對授權！`);
-    } else { showMsg('【提醒】', "員工帳號與通行密碼皆為必填欄位！"); }
+    } else { showMsg('【提醒】', "員工帳號與密碼皆為必填欄位！"); }
 }
 
 function submitMasterGateAccount() {
     let acc = document.getElementById('masterGateAcc').value.trim(); let pas = document.getElementById('masterGatePass').value.trim();
     if(acc && pas) {
-        initialLoginDatabase[acc] = pas; pushLog(`最高權限異動了大門連網鑰匙: ${acc}`); document.getElementById('masterGateAcc').value = ''; document.getElementById('masterGatePass').value = ''; renderStaffList(); saveAndRender();
-        showMsg('【資安提醒】', `🔑 初始大門連網帳號【${acc}】密碼組配置成功！`);
-    } else { showMsg('【提醒】', "大門連網帳號與密碼皆為必填欄位！"); }
+        initialLoginDatabase[acc] = pas; pushLog(`最高權限異動了大門鑰匙: ${acc}`); document.getElementById('masterGateAcc').value = ''; document.getElementById('masterGatePass').value = ''; renderStaffList(); saveAndRender();
+        showMsg('【資安提醒】', `🔑 大門登入帳號【${acc}】密碼配置成功！`);
+    } else { showMsg('【提醒】', "登入帳號與密碼皆為必填欄位！"); }
 }
 
 function deleteMasterGateByAcc(acc) {
-    if(acc === "amy") return showMsg('【提醒】', "系統最高核心amy帳號大門不可刪除！");
-    showMsg('【連網鑰匙移除確認】', `確定要將大門帳號【${acc}】從第一層初始大門中註銷嗎？`, true, function(approved){
-        if(approved) { delete initialLoginDatabase[acc]; pushLog(`移除了大門鑰匙: ${acc}`); renderStaffList(); saveAndRender(); }
+    if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "系統最高核心 amy_chung 帳號不可註銷！");
+    showMsg('【大門鑰匙移除確認】', `確定要將帳號【${acc}】從第一層大門中註銷嗎？`, true, function(approved){
+        if(approved) { delete initialLoginDatabase[acc]; pushLog(`移除了大門帳號: ${acc}`); renderStaffList(); saveAndRender(); }
     });
 }
 
@@ -958,7 +985,7 @@ function deleteVendor(vId) {
 }
 
 function deleteStaffAccountByAcc(acc) {
-    if(acc === "amy") return showMsg('【提醒】', "最高管理者一對一配對安全鎖不允許註銷！");
+    if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者一對一配對安全鎖不允許註銷！");
     showMsg('【安全註銷確認】', `確定要註銷同仁【${acc}】的後台權限嗎？`, true, function(approved) { if(approved) { delete staffDatabase[acc]; pushLog(`註銷了同仁後台權限: ${acc}`); renderStaffList(); saveAndRender(); } });
 }
 
@@ -968,7 +995,7 @@ function renderStaffList() {
     document.querySelectorAll('.btn-del-staff').forEach(btn => { btn.onclick = function() { deleteStaffAccountByAcc(this.getAttribute('data-acc')); }; });
 
     let masterGateList = document.getElementById('backendInitialLoginList'); if(!masterGateList) return; masterGateList.innerHTML = '';
-    for(let acc in initialLoginDatabase) { masterGateList.innerHTML += `<div class="backend-list-item"><span><span>🔑 大門：</span><strong>${acc}</strong> (連網通行碼: ••••••••)</span><button class="btn-sm btn-accent btn-del-gate" data-acc="${acc}">註銷</button></div>`; }
+    for(let acc in initialLoginDatabase) { masterGateList.innerHTML += `<div class="backend-list-item"><span><span>🔑 帳號：</span><strong>${acc}</strong> (密碼: ••••••••)</span><button class="btn-sm btn-accent btn-del-gate" data-acc="${acc}">註銷</button></div>`; }
     document.querySelectorAll('.btn-del-gate').forEach(btn => { btn.onclick = function() { deleteMasterGateByAcc(this.getAttribute('data-acc')); }; });
 }
 
