@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v50</title>
+    <title>VOLARE 智慧雲端安全營運系統 v51</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -721,8 +721,7 @@ function calculateTicketPeople(type, qty) {
 }
 
 function calculateRealExperienceCount(type, qty) {
-    if (type.includes("雙人")) return qty * 2;
-    return qty; 
+    return calculateTicketPeople(type, qty); // 完全採用後台設定的 seats 值，與座位安全計算同一套邏輯，避免重複疊加
 }
 
 function toggleLoginButtonState(disable, text) {
