@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v57</title>
+    <title>VOLARE 智慧雲端安全營運系統 v58</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -798,7 +798,7 @@ function setSyncIndicator(status) {
 function preLoginSyncAndAttempt() {
     let errDiv = document.getElementById('loginErrorMsg'); errDiv.innerText = "正在向 Google 雲端安全鏈結驗證名冊..."; errDiv.style.display = 'block';
     toggleLoginButtonState(true, "⌛ 正在安全驗證中..."); setSyncIndicator('syncing');
-    let controller = new AbortController(); let timeoutId = setTimeout(() => { controller.abort(); }, 6000); 
+    let controller = new AbortController(); let timeoutId = setTimeout(() => { controller.abort(); }, 20000); 
     fetch(CLOUD_DB_URL, { signal: controller.signal })
         .then(res => res.json())
         .then(resData => {
@@ -870,7 +870,7 @@ function pullFromCloud(forceSync = false) {
 // 推送前先向雲端拉一次該天最新版本做合併，避免多台裝置同時新增資料時互相覆蓋。
 function pushToCloud() {
     isSyncing = true; setSyncIndicator('syncing');
-    let syncTimeout = setTimeout(() => { isSyncing = false; }, 10000);
+    let syncTimeout = setTimeout(() => { isSyncing = false; }, 20000);
     let activeDate = getActiveDate();
 
     fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
