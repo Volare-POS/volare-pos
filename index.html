@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v56</title>
+    <title>VOLARE 智慧雲端安全營運系統 v57</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -513,6 +513,13 @@
                     <h4 style="color:#b91c1c; margin:0 0 8px 0;">☣️ 最高管理者特區：重置清空日誌紀錄</h4>
                     <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將當日所有的登記明細完全清空歸零。限最高主管 amy_chung@brogentglobal.com 操作。</p>
                     <button onclick="executeMasterClearDaySales()" class="btn-accent" style="padding:10px; width:auto; font-size:13px; margin-top:8px;">🚨 清除當日所有交易紀錄</button>
+                    <hr style="margin:16px 0; border-color:#fca5a5;">
+                    <h4 style="color:#b91c1c; margin:0 0 8px 0;">🗑️ 雲端資料定期清理（依日期區間批次刪除）</h4>
+                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">選擇一個日期，將自動刪除雲端中此日期【之前】的所有交易紀錄，用於每月例行清理資料量，不影響當期仍在使用的資料。</p>
+                    <div class="form-row" style="align-items:center;">
+                        <input type="date" id="clearBeforeDateInput" style="flex:1;">
+                        <button onclick="executeClearBeforeDate()" class="btn-accent" style="flex:1; padding:10px; font-size:13px;">🗑️ 清除此日期之前的所有紀錄</button>
+                    </div>
                 </div>
                 <h3 style="margin:0 0 10px 0;">📜 後台歷史人員異動操作紀錄</h3>
                 <div class="log-box" id="adminLogContainer"></div>
@@ -678,7 +685,7 @@
 </div>
 
 <script>
-const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwW2mll5UDELffjZ4G86NWDn6R7M8YzWuoWvqlL1qiye4ihl6b-LVJEh1kfOD3rhRQi/exec";
+const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwGgesZ5anwymzIeg9DCQOgv9sjoENpcOXT-YoUh9wDCoGSyZamPitLC-eRbn9GbbB4/exec";
 
 let isSyncing = false; 
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
@@ -821,6 +828,33 @@ function executeMasterClearDaySales() {
     });
 }
 
+// 🎯 雲端資料定期清理：刪除指定日期之前的所有交易紀錄列，用於控制資料量，不需每次找工程師改程式碼
+function executeClearBeforeDate() {
+    let beforeDate = document.getElementById('clearBeforeDateInput').value;
+    if (!beforeDate) { showMsg('【提醒】', "請先選擇一個日期！"); return; }
+    let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將雲端中 <strong>${beforeDate}</strong> 【之前】的所有交易紀錄完全刪除嗎？<br>此動作無法復原，建議先確認近期報表已匯出備份。`;
+    showMsg('【批次清理二次確認】', clearConfirmHtml, true, function(approved) {
+        if (approved) {
+            setSyncIndicator('syncing');
+            let payload = { action: "clearBefore", beforeDate: beforeDate };
+            fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+            .then(res => res.json()).then(resData => {
+                if (resData && resData.status === "success") {
+                    // 同步清掉本機端對應的舊資料，避免畫面顯示已被雲端刪除的紀錄
+                    for (let d in systemStorage) { if (d < beforeDate) delete systemStorage[d]; }
+                    localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
+                    pushLog(`最高管理者執行批次清理：刪除 ${beforeDate} 之前共 ${resData.deletedRows} 筆日期資料`);
+                    setSyncIndicator('success'); loadDateData();
+                    showMsg('【提醒】', `🗑️ 清理完成！共刪除 ${resData.deletedRows} 個日期的雲端紀錄。`);
+                } else {
+                    setSyncIndicator('fail');
+                    showMsg('【提醒】', "清理失敗，請確認網路連線後重試。");
+                }
+            }).catch(err => { setSyncIndicator('fail'); showMsg('【提醒】', "清理失敗：" + err.toString()); });
+        }
+    });
+}
+
 function saveAndRender() { localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); loadDateData(); pushToCloud(); }
 
 function pullFromCloud(forceSync = false) {
@@ -832,13 +866,44 @@ function pullFromCloud(forceSync = false) {
     }).catch(err => { setSyncIndicator('fail'); loadDateData(); });
 }
 
+// 🎯 新架構：只推送「目前操作中的那一天」，避免每次都上傳整包歷史資料造成單一儲存格爆量。
+// 推送前先向雲端拉一次該天最新版本做合併，避免多台裝置同時新增資料時互相覆蓋。
 function pushToCloud() {
     isSyncing = true; setSyncIndicator('syncing');
     let syncTimeout = setTimeout(() => { isSyncing = false; }, 10000);
-    let payload = { action: "write", data: { sales: systemStorage, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList } } };
+    let activeDate = getActiveDate();
+
+    fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
+        if (resData && resData.sales && resData.sales[activeDate]) {
+            mergeSingleDay(activeDate, resData.sales[activeDate]);
+        }
+        if (resData && resData.config) {
+            unpackCloudConfig(resData.config); // 確保推送的 config 是跨裝置合併後的最新版本，不會用舊資料覆蓋別人剛改的設定
+        }
+        sendPushPayload(activeDate, syncTimeout);
+    }).catch(err => {
+        // 拉取失敗也要繼續嘗試推送，避免完全卡住無法寫入
+        sendPushPayload(activeDate, syncTimeout);
+    });
+}
+
+function sendPushPayload(activeDate, syncTimeout) {
+    let salesForThisDay = {};
+    if (systemStorage[activeDate]) salesForThisDay[activeDate] = systemStorage[activeDate];
+    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList } } };
     fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json()).then(resData => { clearTimeout(syncTimeout); isSyncing = false; if(resData && resData.status === "success") setSyncIndicator('success'); else setSyncIndicator('fail'); })
     .catch(err => { clearTimeout(syncTimeout); isSyncing = false; setSyncIndicator('fail'); });
+}
+
+// 合併單一天的雲端資料與本機資料（用於推送前的安全合併，邏輯與 smartMergeSales 相同但只處理一天）
+function mergeSingleDay(dateKey, cloudDayData) {
+    if (!cloudDayData) return;
+    if (!systemStorage[dateKey]) { systemStorage[dateKey] = cloudDayData; return; }
+    if (cloudDayData.clearedAt) { if (!systemStorage[dateKey].clearedAt || cloudDayData.clearedAt > systemStorage[dateKey].clearedAt) { systemStorage[dateKey].clearedAt = cloudDayData.clearedAt; systemStorage[dateKey].tickets = []; systemStorage[dateKey].goods = []; } }
+    let localClearedAt = systemStorage[dateKey].clearedAt || 0;
+    if (cloudDayData.tickets) { cloudDayData.tickets.forEach(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; if (localClearedAt && ts < localClearedAt) return; if (!systemStorage[dateKey].tickets.some(lTicket => lTicket.id === cTicket.id)) systemStorage[dateKey].tickets.push(cTicket); }); }
+    if (cloudDayData.goods) { cloudDayData.goods.forEach(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; if (localClearedAt && ts < localClearedAt) return; if (!systemStorage[dateKey].goods.some(lGood => lGood.id === cGood.id)) systemStorage[dateKey].goods.push(cGood); }); }
 }
 
 function smartMergeSales(cloudSales) {
@@ -866,11 +931,28 @@ function unpackCloudConfig(cfg) {
     localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase)); localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase)); localStorage.setItem('volare_vendor_db_v1', JSON.stringify(vendorDatabase));
 }
 
-function onMasterDateChange() { loadDateData(); }
+// 🎯 切換日期時，主動向雲端拉取該天最新資料，確保跨裝置看到的是最新狀態（先前版本只重畫本機資料，是造成同步落差的原因之一）
+function onMasterDateChange() { pullFromCloud(true); }
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
-    rangeQueryStart = s; rangeQueryEnd = e; pullFromCloud();
+    rangeQueryStart = s; rangeQueryEnd = e;
+    pullRangeFromCloud(s, e);
+}
+
+// 🎯 區間查詢專用：直接向 GAS 要求指定日期範圍的資料，不受預設 90 天限制，可查詢任意歷史區間
+function pullRangeFromCloud(startDate, endDate) {
+    setSyncIndicator('syncing');
+    let rangeUrl = `${CLOUD_DB_URL}?start=${startDate}&end=${endDate}`;
+    fetch(rangeUrl).then(res => res.json()).then(resData => {
+        if(resData && !resData.error && resData.sales) {
+            for (let dateKey in resData.sales) {
+                mergeSingleDay(dateKey, resData.sales[dateKey]);
+            }
+            localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
+        }
+        setSyncIndicator('success'); loadDateData();
+    }).catch(err => { setSyncIndicator('fail'); loadDateData(); });
 }
 function closeModal(id) { document.getElementById(id).style.display = 'none'; currentEditTarget = null; }
 
