@@ -685,7 +685,7 @@
 </div>
 
 <script>
-const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbxQ6ftQdBt7kBiVNx9U-zRXiDG8i1FVn4gSnvYpdDD0GUjDAvh5892Sn43yJC3jMZBS/exec";
+const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwGgesZ5anwymzIeg9DCQOgv9sjoENpcOXT-YoUh9wDCoGSyZamPitLC-eRbn9GbbB4/exec";
 
 let isSyncing = false; 
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
@@ -807,15 +807,11 @@ function preLoginSyncAndAttempt() {
     
     fetch(CLOUD_DB_URL, { signal: controller.signal })
         .then(async res => {
-            // 1. 檢查 HTTP 狀態碼
             if (!res.ok) throw new Error(`HTTP 連線錯誤碼: ${res.status}`);
-            
-            // 2. 解析內容，預防 Google 吐回 HTML 登入畫面
             let text = await res.text();
             try {
                 return JSON.parse(text);
             } catch (e) {
-                // 如果解析 JSON 失敗，100% 是 GAS 權限設定錯誤
                 throw new Error("GAS 權限錯誤！請確認部署的「執行身分」為「我」，「誰可以存取」為「所有人」。");
             }
         })
@@ -835,8 +831,6 @@ function preLoginSyncAndAttempt() {
             clearTimeout(timeoutId); 
             setSyncIndicator('fail'); 
             toggleLoginButtonState(false, "登入解鎖系統");
-            
-            // 🎯 直接把真實死因印在登入畫面上
             errDiv.innerHTML = `❌ 連線失敗！<br><span style="font-size:13px; color:#c0392b;">原因：${err.message}</span>`; 
             errDiv.style.display = 'block';
         });
