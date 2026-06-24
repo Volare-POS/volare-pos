@@ -685,7 +685,7 @@
 </div>
 
 <script>
-const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbwGgesZ5anwymzIeg9DCQOgv9sjoENpcOXT-YoUh9wDCoGSyZamPitLC-eRbn9GbbB4/exec";
+const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbxQ6ftQdBt7kBiVNx9U-zRXiDG8i1FVn4gSnvYpdDD0GUjDAvh5892Sn43yJC3jMZBS/exec";
 
 let isSyncing = false; 
 let adminLogs = JSON.parse(localStorage.getItem('volare_admin_logs')) || [];
@@ -796,18 +796,49 @@ function setSyncIndicator(status) {
 }
 
 function preLoginSyncAndAttempt() {
-    let errDiv = document.getElementById('loginErrorMsg'); errDiv.innerText = "正在向 Google 雲端安全鏈結驗證名冊..."; errDiv.style.display = 'block';
-    toggleLoginButtonState(true, "⌛ 正在安全驗證中..."); setSyncIndicator('syncing');
-    let controller = new AbortController(); let timeoutId = setTimeout(() => { controller.abort(); }, 20000); 
+    let errDiv = document.getElementById('loginErrorMsg'); 
+    errDiv.innerText = "正在向 Google 雲端安全鏈結驗證名冊..."; 
+    errDiv.style.display = 'block';
+    toggleLoginButtonState(true, "⌛ 正在安全驗證中..."); 
+    setSyncIndicator('syncing');
+    
+    let controller = new AbortController(); 
+    let timeoutId = setTimeout(() => { controller.abort(); }, 20000); 
+    
     fetch(CLOUD_DB_URL, { signal: controller.signal })
-        .then(res => res.json())
+        .then(async res => {
+            // 1. 檢查 HTTP 狀態碼
+            if (!res.ok) throw new Error(`HTTP 連線錯誤碼: ${res.status}`);
+            
+            // 2. 解析內容，預防 Google 吐回 HTML 登入畫面
+            let text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                // 如果解析 JSON 失敗，100% 是 GAS 權限設定錯誤
+                throw new Error("GAS 權限錯誤！請確認部署的「執行身分」為「我」，「誰可以存取」為「所有人」。");
+            }
+        })
         .then(resData => {
             clearTimeout(timeoutId); 
-            if (resData && !resData.error) { unpackCloudConfig(resData.config); smartMergeSales(resData.sales); localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); setSyncIndicator('success'); executeActualLoginLogic(); } else { throw new Error("格式錯誤"); }
+            if (resData && !resData.error) { 
+                unpackCloudConfig(resData.config); 
+                smartMergeSales(resData.sales); 
+                localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage)); 
+                setSyncIndicator('success'); 
+                executeActualLoginLogic(); 
+            } else { 
+                throw new Error(resData.error || "雲端回傳的資料格式異常"); 
+            }
         })
         .catch(err => {
-            clearTimeout(timeoutId); setSyncIndicator('fail'); toggleLoginButtonState(false, "登入解鎖系統");
-            errDiv.innerHTML = "❌ 雲端資料同步超時或被公司內網阻斷！"; errDiv.style.display = 'block';
+            clearTimeout(timeoutId); 
+            setSyncIndicator('fail'); 
+            toggleLoginButtonState(false, "登入解鎖系統");
+            
+            // 🎯 直接把真實死因印在登入畫面上
+            errDiv.innerHTML = `❌ 連線失敗！<br><span style="font-size:13px; color:#c0392b;">原因：${err.message}</span>`; 
+            errDiv.style.display = 'block';
         });
 }
 
