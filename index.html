@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v63</title>
+    <title>VOLARE 智慧雲端安全營運系統 v66</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -719,7 +719,7 @@ let staffDatabase = JSON.parse(localStorage.getItem('volare_staff_db_v16')) || {
 };
 
 let ticketTypeDatabase = JSON.parse(localStorage.getItem('volare_ticket_db_v16')) || {
-    "一般單片票": {priceWeekday: 249, priceHoliday: 249, seats: 1}, "一般雙片票": {priceWeekday: 398, priceHoliday: 398, seats: 0.5}, "單片X折票": {priceWeekday: 350, priceHoliday: 350, seats: 1}, "動漫X折票": {priceWeekday: 0, priceHoliday: 0, seats: 1},
+    "一般單片票": {priceWeekday: 249, priceHoliday: 249, seats: 1}, "一般雙片票": {priceWeekday: 398, priceHoliday: 398, seats: 1}, "單片X折票": {priceWeekday: 350, priceHoliday: 350, seats: 1}, "動漫X折票": {priceWeekday: 0, priceHoliday: 0, seats: 1},
     "動漫單人票": {priceWeekday: 399, priceHoliday: 399, seats: 1}, "動漫雙人票": {priceWeekday: 698, priceHoliday: 698, seats: 1}, "企業優惠票": {priceWeekday: 220, priceHoliday: 220, seats: 1}, "集團優惠票": {priceWeekday: 120, priceHoliday: 120, seats: 1},
     "親子卡": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "員工票": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "貴賓票": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "平台票": {priceWeekday: 0, priceHoliday: 0, seats: 1}, "免費票": {priceWeekday: 0, priceHoliday: 0, seats: 1},
     "團體優惠單單片": {priceWeekday: 200, priceHoliday: 200, seats: 1}, "團體優惠雙片": {priceWeekday: 349, priceHoliday: 349, seats: 1}, "極速賽車": {priceWeekday: 150, priceHoliday: 150, seats: 0}, "極速賽車加購": {priceWeekday: 99, priceHoliday: 99, seats: 0}, "極速賽車免費": {priceWeekday: 0, priceHoliday: 0, seats: 0}
@@ -779,7 +779,7 @@ function calculateTicketPeople(type, qty) {
 
 function calculateRealExperienceCount(type, qty) {
     if (type.includes("極速賽車")) return qty; // 賽車不佔影廳座位（seats=0），但體驗人數仍須照張數正常累計，不可沿用座位安全的 0 值
-    return calculateTicketPeople(type, qty); // 其餘票種採用後台設定的 seats 值
+    return calculateTicketPeople(type, qty); // 其餘票種（包含一般雙片票）統一採用後台設定的 seats 值，每張票都是一個完整的人
 }
 
 function toggleLoginButtonState(disable, text) {
@@ -1242,10 +1242,23 @@ function switchBackendTab(tab) {
     document.getElementById('bZoneProg').style.display = tab === 'Prog' ? 'block' : 'none'; document.getElementById('bZoneTicket').style.display = tab === 'Ticket' ? 'block' : 'none';
     document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none'; document.getElementById('bZoneUsers').style.display = tab === 'Users' ? 'block' : 'none'; document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
     document.getElementById('bZoneVend').style.display = tab === 'Vend' ? 'block' : 'none'; document.getElementById('bZoneMasterUsers').style.display = tab === 'MasterUsers' ? 'block' : 'none';
-    // 🎯 離開周邊商品分頁時，若仍處於編輯狀態，連同表單內容一起清空，避免切回時欄位解鎖但殘留舊資料造成混淆
+    // 🎯 離開分頁時，若該表單仍處於編輯狀態，連同表單內容一起清空，避免切回時欄位解鎖但殘留舊資料造成混淆（影片/票種/商品/廠商皆採同一套邏輯）
+    if (tab !== 'Prog' && editingProgramIdx !== null) {
+        document.getElementById('newProgName').value = '';
+        resetProgramFormLock();
+    }
+    if (tab !== 'Ticket' && editingTicketName !== null) {
+        document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceWeekday').value = ''; document.getElementById('newTicketPriceHoliday').value = ''; document.getElementById('newTicketSeatsDefault').value = '';
+        resetTicketFormLock();
+    }
     if (tab !== 'Goods' && editingGoodsBarcode !== null) {
         document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
         resetGoodsFormLock();
+    }
+    if (tab !== 'Vend' && editingVendorId !== null) {
+        document.getElementById('newVId').value = ''; document.getElementById('newVName').value = '';
+        document.getElementById('newVId').disabled = false;
+        editingVendorId = null;
     }
 }
 
@@ -1266,7 +1279,7 @@ function deleteMasterGateByAcc(acc) {
 
 function submitNewVendor() {
     let vId = document.getElementById('newVId').value.trim(); let vName = document.getElementById('newVName').value.trim();
-    if(vId && vName) { vendorDatabase[vId] = vName; delete deletedVendorKeys[vId]; pushLog(`更新廠商基本檔: [${vId}] ${vName}`); document.getElementById('newVId').value = ''; document.getElementById('newVName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', `🤝 廠商【${vName}】基本檔已同步寫入雲端！`); } else { showMsg('【提醒】', "廠商編號與廠商名稱皆為必填！"); }
+    if(vId && vName) { vendorDatabase[vId] = vName; delete deletedVendorKeys[vId]; pushLog(`更新廠商基本檔: [${vId}] ${vName}`); document.getElementById('newVId').value = ''; document.getElementById('newVName').value = ''; editingVendorId = null; document.getElementById('newVId').disabled = false; renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', `🤝 廠商【${vName}】基本檔已同步寫入雲端！`); } else { showMsg('【提醒】', "廠商編號與廠商名稱皆為必填！"); }
 }
 
 function deleteVendor(vId) {
@@ -1321,7 +1334,16 @@ function moveTicketOrder(tName, direction) {
 // ===== 影片節目維護（先前版本缺失，現補回） =====
 function submitNewProgram() {
     let val = document.getElementById('newProgName').value.trim();
-    if(val) { programList.push(val); pushLog(`新增影片: ${val}`); document.getElementById('newProgName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+    if(val) {
+        if (editingProgramIdx !== null) {
+            programList[editingProgramIdx] = val;
+            pushLog(`修改影片名稱: ${val}`);
+        } else {
+            programList.push(val);
+            pushLog(`新增影片: ${val}`);
+        }
+        document.getElementById('newProgName').value = ''; resetProgramFormLock(); renderBackendLists(); initStaticDropdowns(); saveAndRender();
+    }
     else { showMsg('【提醒】', "請輸入影片名稱！"); }
 }
 function deleteProg(idx) { let old = programList[idx]; programList.splice(idx, 1); pushLog(`刪除影片: ${old}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
@@ -1338,6 +1360,7 @@ function submitNewTicket() {
         delete deletedTicketKeys[val];
         pushLog(`變更票種: ${val} (平日$${priceWeekday} / 假日$${priceHoliday} / ${defaultSeats}人次)`);
         document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceWeekday').value = ''; document.getElementById('newTicketPriceHoliday').value = ''; document.getElementById('newTicketSeatsDefault').value = '';
+        resetTicketFormLock();
         renderBackendLists(); initStaticDropdowns(); saveAndRender();
     }
     else { showMsg('【提醒】', "請輸入票種名稱！"); }
@@ -1398,17 +1421,29 @@ let editingTicketName = null; let editingGoodsBarcode = null; let editingVendorI
 function editProgram(idx) {
     editingProgramIdx = idx;
     document.getElementById('newProgName').value = programList[idx];
-    showMsg('【提醒】', `已載入「${programList[idx]}」，修改名稱後請按「建立」按鈕儲存變更。`);
+    document.getElementById('newProgName').disabled = true;
+    showMsg('【提醒】', `已載入「${programList[idx]}」，名稱無法在編輯模式下修改（如需改名請先刪除再新增）。`);
 }
 
 function editTicket(tName) {
     editingTicketName = tName;
     let item = ticketTypeDatabase[tName];
     document.getElementById('newTicketName').value = tName;
+    document.getElementById('newTicketName').disabled = true;
     document.getElementById('newTicketPriceWeekday').value = item.priceWeekday !== undefined ? item.priceWeekday : (item.price || 0);
     document.getElementById('newTicketPriceHoliday').value = item.priceHoliday !== undefined ? item.priceHoliday : (item.price || 0);
     document.getElementById('newTicketSeatsDefault').value = item.seats !== undefined ? item.seats : 1;
-    showMsg('【提醒】', `已載入「${tName}」的設定，修改後請按「建立或覆蓋票種基本檔」按鈕儲存變更。`);
+    showMsg('【提醒】', `已載入「${tName}」的設定，票種名稱無法在編輯模式下修改（如需改名請先刪除再新增）。`);
+}
+
+// 🎯 統一管理影片/票種表單的編輯狀態解鎖與清空，與周邊商品同一套設計邏輯
+function resetProgramFormLock() {
+    editingProgramIdx = null;
+    document.getElementById('newProgName').disabled = false;
+}
+function resetTicketFormLock() {
+    editingTicketName = null;
+    document.getElementById('newTicketName').disabled = false;
 }
 
 function editGoods(barcode) {
@@ -1426,8 +1461,9 @@ function editGoods(barcode) {
 function editVendor(vId) {
     editingVendorId = vId;
     document.getElementById('newVId').value = vId;
+    document.getElementById('newVId').disabled = true;
     document.getElementById('newVName').value = vendorDatabase[vId];
-    showMsg('【提醒】', `已載入「${vendorDatabase[vId]}」，修改後請按「儲存基本檔」按鈕儲存變更。`);
+    showMsg('【提醒】', `已載入「${vendorDatabase[vId]}」，廠商代碼無法在編輯模式下修改（如需改代碼請先刪除再新增）。`);
 }
 
 // 🎯 統一管理周邊表單的鎖定狀態（條碼+初始庫存），確保標題上的🔒圖示與欄位disabled狀態永遠一致
