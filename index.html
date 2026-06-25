@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v66</title>
+    <title>VOLARE 智慧雲端安全營運系統 v67</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -919,18 +919,37 @@ function pushToCloud() {
     let syncTimeout = setTimeout(() => { isSyncing = false; }, 20000);
     let activeDate = getActiveDate();
 
+    // 🎯 在合併雲端資料前，先快照本機目前的設定值。合併後若雲端版本覆蓋了任何本機既有的key，
+    // 一律以「使用者剛剛在這台裝置上做的操作」為準強制還原，避免使用者的修改被舊的雲端資料蓋掉。
+    let localSnapshot = {
+        ticketTypeDatabase: JSON.parse(JSON.stringify(ticketTypeDatabase)),
+        goodsDatabase: JSON.parse(JSON.stringify(goodsDatabase)),
+        vendorDatabase: JSON.parse(JSON.stringify(vendorDatabase)),
+        staffDatabase: JSON.parse(JSON.stringify(staffDatabase))
+    };
+
     fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
         if (resData && resData.sales && resData.sales[activeDate]) {
             mergeSingleDay(activeDate, resData.sales[activeDate]);
         }
         if (resData && resData.config) {
-            unpackCloudConfig(resData.config); // 確保推送的 config 是跨裝置合併後的最新版本，不會用舊資料覆蓋別人剛改的設定
+            unpackCloudConfig(resData.config); // 合併雲端的墓碑清單與其他裝置可能新增的項目
+            restoreLocalSnapshotValues(localSnapshot); // 還原本機剛做的修改，確保使用者操作優先於合併結果
         }
         sendPushPayload(activeDate, syncTimeout);
     }).catch(err => {
         // 拉取失敗也要繼續嘗試推送，避免完全卡住無法寫入
         sendPushPayload(activeDate, syncTimeout);
     });
+}
+
+// 把快照裡每一個 key 的值強制寫回去，確保使用者剛做的新增/修改/刪除不會被合併過程覆蓋
+// （新增/修改：強制還原本機值；刪除：本機已經沒有這個key，快照裡也沒有，自然不會被還原回來）
+function restoreLocalSnapshotValues(snapshot) {
+    for (let key in snapshot.ticketTypeDatabase) { ticketTypeDatabase[key] = snapshot.ticketTypeDatabase[key]; }
+    for (let key in snapshot.goodsDatabase) { goodsDatabase[key] = snapshot.goodsDatabase[key]; }
+    for (let key in snapshot.vendorDatabase) { vendorDatabase[key] = snapshot.vendorDatabase[key]; }
+    for (let key in snapshot.staffDatabase) { staffDatabase[key] = snapshot.staffDatabase[key]; }
 }
 
 function sendPushPayload(activeDate, syncTimeout) {
