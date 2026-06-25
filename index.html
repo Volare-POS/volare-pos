@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v58</title>
+    <title>VOLARE 智慧雲端安全營運系統 v60</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -723,6 +723,13 @@ let vendorDatabase = JSON.parse(localStorage.getItem('volare_vendor_db_v1')) || 
     "BROGENT": "智崴集團員工"
 };
 
+// 🎯 刪除墓碑清單：記錄「已被刪除的 key + 刪除時間」，避免其他裝置的舊資料在合併時把已刪除項目復活
+// 結構: { "key名稱": 刪除時間戳記(ms) }
+let deletedTicketKeys = JSON.parse(localStorage.getItem('volare_deleted_tickets')) || {};
+let deletedGoodsKeys = JSON.parse(localStorage.getItem('volare_deleted_goods')) || {};
+let deletedVendorKeys = JSON.parse(localStorage.getItem('volare_deleted_vendors')) || {};
+let deletedStaffKeys = JSON.parse(localStorage.getItem('volare_deleted_staff')) || {};
+
 let systemStorage = {};
 let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null;
 let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
@@ -915,7 +922,7 @@ function pushToCloud() {
 function sendPushPayload(activeDate, syncTimeout) {
     let salesForThisDay = {};
     if (systemStorage[activeDate]) salesForThisDay[activeDate] = systemStorage[activeDate];
-    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList } } };
+    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys } } };
     fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json()).then(resData => { clearTimeout(syncTimeout); isSyncing = false; if(resData && resData.status === "success") setSyncIndicator('success'); else setSyncIndicator('fail'); })
     .catch(err => { clearTimeout(syncTimeout); isSyncing = false; setSyncIndicator('fail'); });
@@ -946,15 +953,52 @@ function smartMergeSales(cloudSales) {
 function unpackCloudConfig(cfg) {
     if(!cfg) return;
     programList = (cfg.programList && cfg.programList.length > 0) ? cfg.programList : programList;
-    if (cfg.initialLoginDatabase && Object.keys(cfg.initialLoginDatabase).length > 0) initialLoginDatabase = Object.assign({}, initialLoginDatabase, cfg.initialLoginDatabase);
+
+    // 🎯 先合併墓碑清單（取每個key最新的刪除時間），確保所有裝置都知道哪些東西已被刪除
+    if (cfg.deletedTicketKeys) mergeDeletionTombstones(deletedTicketKeys, cfg.deletedTicketKeys);
+    if (cfg.deletedGoodsKeys) mergeDeletionTombstones(deletedGoodsKeys, cfg.deletedGoodsKeys);
+    if (cfg.deletedVendorKeys) mergeDeletionTombstones(deletedVendorKeys, cfg.deletedVendorKeys);
+    if (cfg.deletedStaffKeys) mergeDeletionTombstones(deletedStaffKeys, cfg.deletedStaffKeys);
+
     if (cfg.staffDatabase && Object.keys(cfg.staffDatabase).length > 0) staffDatabase = Object.assign({}, staffDatabase, cfg.staffDatabase);
     if (cfg.ticketTypeDatabase && Object.keys(cfg.ticketTypeDatabase).length > 0) ticketTypeDatabase = Object.assign({}, ticketTypeDatabase, cfg.ticketTypeDatabase);
     if (cfg.goodsDatabase && Object.keys(cfg.goodsDatabase).length > 0) goodsDatabase = Object.assign({}, goodsDatabase, cfg.goodsDatabase);
     if (cfg.vendorDatabase && Object.keys(cfg.vendorDatabase).length > 0) vendorDatabase = Object.assign({}, vendorDatabase, cfg.vendorDatabase);
-    
+    // 🎯 initialLoginDatabase（大門帳號）目前無刪除墓碑機制，沿用原本合併方式
+    if (cfg.initialLoginDatabase && Object.keys(cfg.initialLoginDatabase).length > 0) initialLoginDatabase = Object.assign({}, initialLoginDatabase, cfg.initialLoginDatabase);
+
+    // 🎯 合併完成後，把所有已標記刪除的 key 從各資料庫中徹底移除，不管是哪台裝置寫回來的舊資料都會被排除
+    applyDeletionTombstones(ticketTypeDatabase, deletedTicketKeys);
+    applyDeletionTombstones(goodsDatabase, deletedGoodsKeys);
+    applyDeletionTombstones(vendorDatabase, deletedVendorKeys);
+    applyDeletionTombstones(staffDatabase, deletedStaffKeys);
+
     localStorage.setItem('volare_initial_login_db', JSON.stringify(initialLoginDatabase)); localStorage.setItem('volare_programs_v13', JSON.stringify(programList));
     localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase)); localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase)); localStorage.setItem('volare_vendor_db_v1', JSON.stringify(vendorDatabase));
+    localStorage.setItem('volare_deleted_tickets', JSON.stringify(deletedTicketKeys)); localStorage.setItem('volare_deleted_goods', JSON.stringify(deletedGoodsKeys)); localStorage.setItem('volare_deleted_vendors', JSON.stringify(deletedVendorKeys)); localStorage.setItem('volare_deleted_staff', JSON.stringify(deletedStaffKeys));
 }
+
+// 合併兩份墓碑清單，同一個key取較新的刪除時間（代表那是更晚發生、更權威的操作紀錄）
+function mergeDeletionTombstones(localTombstones, cloudTombstones) {
+    for (let key in cloudTombstones) {
+        if (!localTombstones[key] || cloudTombstones[key] > localTombstones[key]) {
+            localTombstones[key] = cloudTombstones[key];
+        }
+    }
+}
+
+// 把已標記刪除的 key 從資料庫物件中移除
+function applyDeletionTombstones(database, tombstones) {
+    for (let key in tombstones) {
+        if (database[key] !== undefined) delete database[key];
+    }
+}
+
+// 標記某個key為已刪除（記錄目前時間），供後續合併時排除使用
+function markAsDeleted(tombstones, key) {
+    tombstones[key] = Date.now();
+}
+
 
 // 🎯 切換日期時，主動向雲端拉取該天最新資料，確保跨裝置看到的是最新狀態（先前版本只重畫本機資料，是造成同步落差的原因之一）
 function onMasterDateChange() { pullFromCloud(true); }
@@ -1169,7 +1213,7 @@ function switchBackendTab(tab) {
 
 function submitNewStaffAccount() {
     let acc = document.getElementById('newStaffAccount').value.trim(); let pas = document.getElementById('newStaffPassword').value.trim();
-    if(acc && pas) { staffDatabase[acc] = pas; pushLog(`建立了新同仁獨立帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList(); saveAndRender(); showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功獨立配對授權！`); } else { showMsg('【提醒】', "員工帳號與密碼皆為必填欄位！"); }
+    if(acc && pas) { staffDatabase[acc] = pas; delete deletedStaffKeys[acc]; pushLog(`建立了新同仁獨立帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList(); saveAndRender(); showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功獨立配對授權！`); } else { showMsg('【提醒】', "員工帳號與密碼皆為必填欄位！"); }
 }
 
 function submitMasterGateAccount() {
@@ -1184,17 +1228,17 @@ function deleteMasterGateByAcc(acc) {
 
 function submitNewVendor() {
     let vId = document.getElementById('newVId').value.trim(); let vName = document.getElementById('newVName').value.trim();
-    if(vId && vName) { vendorDatabase[vId] = vName; pushLog(`更新廠商基本檔: [${vId}] ${vName}`); document.getElementById('newVId').value = ''; document.getElementById('newVName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', `🤝 廠商【${vName}】基本檔已同步寫入雲端！`); } else { showMsg('【提醒】', "廠商編號與廠商名稱皆為必填！"); }
+    if(vId && vName) { vendorDatabase[vId] = vName; delete deletedVendorKeys[vId]; pushLog(`更新廠商基本檔: [${vId}] ${vName}`); document.getElementById('newVId').value = ''; document.getElementById('newVName').value = ''; renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', `🤝 廠商【${vName}】基本檔已同步寫入雲端！`); } else { showMsg('【提醒】', "廠商編號與廠商名稱皆為必填！"); }
 }
 
 function deleteVendor(vId) {
     if(vId === "--") return showMsg('【提醒】', "預設空值代碼不允許刪除。");
-    showMsg('【廠商註銷確認】', `確定要將合作代碼【${vId}】從數據庫中抹除嗎？`, true, function(approved) { if(approved) { delete vendorDatabase[vId]; pushLog(`移除了廠商代碼: ${vId}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); } });
+    showMsg('【廠商註銷確認】', `確定要將合作代碼【${vId}】從數據庫中抹除嗎？`, true, function(approved) { if(approved) { delete vendorDatabase[vId]; markAsDeleted(deletedVendorKeys, vId); pushLog(`移除了廠商代碼: ${vId}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); } });
 }
 
 function deleteStaffAccountByAcc(acc) {
     if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者一對一配對安全鎖不允許註銷！");
-    showMsg('【安全註銷確認】', `確定要註銷同仁【${acc}】的後台權限嗎？`, true, function(approved) { if(approved) { delete staffDatabase[acc]; pushLog(`註銷了同仁後台權限: ${acc}`); renderStaffList(); saveAndRender(); } });
+    showMsg('【安全註銷確認】', `確定要註銷同仁【${acc}】的後台權限嗎？`, true, function(approved) { if(approved) { delete staffDatabase[acc]; markAsDeleted(deletedStaffKeys, acc); pushLog(`註銷了同仁後台權限: ${acc}`); renderStaffList(); saveAndRender(); } });
 }
 
 function renderStaffList() {
@@ -1253,13 +1297,14 @@ function submitNewTicket() {
     let defaultSeats = parseFloat(document.getElementById('newTicketSeatsDefault').value); if (isNaN(defaultSeats)) defaultSeats = 1;
     if(val) {
         ticketTypeDatabase[val] = {priceWeekday: priceWeekday, priceHoliday: priceHoliday, seats: defaultSeats};
+        delete deletedTicketKeys[val];
         pushLog(`變更票種: ${val} (平日$${priceWeekday} / 假日$${priceHoliday} / ${defaultSeats}人次)`);
         document.getElementById('newTicketName').value = ''; document.getElementById('newTicketPriceWeekday').value = ''; document.getElementById('newTicketPriceHoliday').value = ''; document.getElementById('newTicketSeatsDefault').value = '';
         renderBackendLists(); initStaticDropdowns(); saveAndRender();
     }
     else { showMsg('【提醒】', "請輸入票種名稱！"); }
 }
-function deleteTicket(tName) { delete ticketTypeDatabase[tName]; pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+function deleteTicket(tName) { delete ticketTypeDatabase[tName]; markAsDeleted(deletedTicketKeys, tName); pushLog(`刪除票種: ${tName}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
 
 // ===== 周邊商品維護（先前版本缺失，現補回） =====
 function submitNewGoods() {
@@ -1267,11 +1312,12 @@ function submitNewGoods() {
     let initStock = parseInt(document.getElementById('newGInit').value) || 0; let safety = parseInt(document.getElementById('newGSafety').value) || 0;
     if(bc && name && price) {
         goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety };
+        delete deletedGoodsKeys[bc];
         pushLog(`更新周邊: [${bc}] ${name}`); document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
         renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊資料配置成功！");
     } else { showMsg('【提醒】', "請填寫完整欄位！"); }
 }
-function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
+function deleteGoods(barcode) { let name = goodsDatabase[barcode].name; delete goodsDatabase[barcode]; markAsDeleted(deletedGoodsKeys, barcode); pushLog(`刪除周邊: [${barcode}] ${name}`); renderBackendLists(); initStaticDropdowns(); saveAndRender(); }
 
 function renderBackendLists() {
     let pList = document.getElementById('backendProgList'); pList.innerHTML = '';
