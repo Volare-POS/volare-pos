@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v61</title>
+    <title>VOLARE 智慧雲端安全營運系統 v62</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -465,7 +465,11 @@
                 <div class="form-group">
                     <div class="form-row" style="margin-bottom: 5px;"><input type="text" id="newGBarcode" placeholder="請輸入國際條碼" style="flex:1;"><input type="text" id="newGName" placeholder="請輸入商品品名" style="flex:1;"></div>
                     <div class="form-row"><input type="number" id="newGPrice" placeholder="零售定價" style="flex:1;"><input type="number" id="newGInit" placeholder="初始入庫量" style="flex:1;"><input type="number" id="newGSafety" placeholder="安全庫存量" style="flex:1;"></div>
-                    <button onclick="submitNewGoods()" style="margin-top:8px; background:var(--success-color);">儲存並寫入基本檔</button>
+                    <div id="newGInitLockedHint" style="display:none; font-size:12px; color:#b45309; background:#fff7ed; padding:6px 10px; border-radius:4px; margin-top:6px;">⚠️ 初始庫存為盤點計算基準值，編輯模式下無法修改。如需訂正，請使用前台「周邊登記」功能補登一筆調整數量，確保所有庫存變動皆有紀錄可查。</div>
+                    <div class="form-row" style="margin-top:8px;">
+                        <button onclick="submitNewGoods()" style="background:var(--success-color);">儲存並寫入基本檔</button>
+                        <button onclick="resetGoodsFormLock(); document.getElementById('newGBarcode').value=''; document.getElementById('newGName').value=''; document.getElementById('newGPrice').value=''; document.getElementById('newGInit').value=''; document.getElementById('newGSafety').value='';" style="background:#7f8c8d;">清空表單 / 新增模式</button>
+                    </div>
                 </div>
                 <div id="backendGoodsList" style="max-height:200px; overflow-y:auto; border-top:1px solid #ccc; padding-top:10px;"></div>
             </div>
@@ -673,7 +677,7 @@
                 </div>
                 <div id="viewStockZone" style="display:none;">
                     <h3>📊 周邊商品動態進銷存與安全庫存盤點表</h3>
-                    <div class="table-responsive"><table><thead><tr><th>國際條碼</th><th>商品品名</th><th>商品單價</th><th>初始庫存</th><th>歷史累計銷售</th><th>剩餘庫存</th><th>安全庫存</th><th>安全狀態</th></tr></thead><tbody id="stockTableBody"></tbody></table></div>
+                    <div class="table-responsive"><table><thead><tr><th>國際條碼</th><th>商品品名</th><th>商品單價</th><th>初始庫存</th><th>歷史累計銷售</th><th>歷史累計補貨</th><th>剩餘庫存</th><th>安全庫存</th><th>安全狀態</th></tr></thead><tbody id="stockTableBody"></tbody></table></div>
                 </div>
                 <div id="viewMonthZone" style="display:none;">
                     <h3>📅 歷史營業日大合流總覽清單</h3>
@@ -929,13 +933,32 @@ function sendPushPayload(activeDate, syncTimeout) {
 }
 
 // 合併單一天的雲端資料與本機資料（用於推送前的安全合併，邏輯與 smartMergeSales 相同但只處理一天）
+// 🎯 共用合併邏輯：依 lastModified 時間戳記決定覆蓋或新增，解決「同一筆紀錄被修改後無法正確同步」的根本問題
+// 沒有 lastModified 的舊資料視為時間 0（最舊），確保任何有時間戳記的版本都能正確覆蓋過去
+function mergeRecordList(localList, cloudList) {
+    cloudList.forEach(cRecord => {
+        let cloudTime = cRecord.lastModified || 0;
+        let localIdx = localList.findIndex(lRecord => lRecord.id === cRecord.id);
+        if (localIdx === -1) {
+            // 本機沒有這筆，直接新增
+            localList.push(cRecord);
+        } else {
+            // 本機已有這筆，比較時間戳記，較新的版本覆蓋舊版本
+            let localTime = localList[localIdx].lastModified || 0;
+            if (cloudTime > localTime) {
+                localList[localIdx] = cRecord;
+            }
+        }
+    });
+}
+
 function mergeSingleDay(dateKey, cloudDayData) {
     if (!cloudDayData) return;
     if (!systemStorage[dateKey]) { systemStorage[dateKey] = cloudDayData; return; }
     if (cloudDayData.clearedAt) { if (!systemStorage[dateKey].clearedAt || cloudDayData.clearedAt > systemStorage[dateKey].clearedAt) { systemStorage[dateKey].clearedAt = cloudDayData.clearedAt; systemStorage[dateKey].tickets = []; systemStorage[dateKey].goods = []; } }
     let localClearedAt = systemStorage[dateKey].clearedAt || 0;
-    if (cloudDayData.tickets) { cloudDayData.tickets.forEach(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; if (localClearedAt && ts < localClearedAt) return; if (!systemStorage[dateKey].tickets.some(lTicket => lTicket.id === cTicket.id)) systemStorage[dateKey].tickets.push(cTicket); }); }
-    if (cloudDayData.goods) { cloudDayData.goods.forEach(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; if (localClearedAt && ts < localClearedAt) return; if (!systemStorage[dateKey].goods.some(lGood => lGood.id === cGood.id)) systemStorage[dateKey].goods.push(cGood); }); }
+    if (cloudDayData.tickets) { let filteredCloudTickets = cloudDayData.tickets.filter(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[dateKey].tickets, filteredCloudTickets); }
+    if (cloudDayData.goods) { let filteredCloudGoods = cloudDayData.goods.filter(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[dateKey].goods, filteredCloudGoods); }
 }
 
 function smartMergeSales(cloudSales) {
@@ -944,8 +967,8 @@ function smartMergeSales(cloudSales) {
         if (!systemStorage[date]) { systemStorage[date] = cloudSales[date]; } else {
             if (cloudSales[date].clearedAt) { if (!systemStorage[date].clearedAt || cloudSales[date].clearedAt > systemStorage[date].clearedAt) { systemStorage[date].clearedAt = cloudSales[date].clearedAt; systemStorage[date].tickets = []; systemStorage[date].goods = []; } }
             let localClearedAt = systemStorage[date].clearedAt || 0;
-            if (cloudSales[date].tickets) { cloudSales[date].tickets.forEach(cTicket => { let ticketTimestamp = parseInt(cTicket.id.split('_')[1]) || 0; if (localClearedAt && ticketTimestamp < localClearedAt) return; if (!systemStorage[date].tickets.some(lTicket => lTicket.id === cTicket.id)) systemStorage[date].tickets.push(cTicket); }); }
-            if (cloudSales[date].goods) { cloudSales[date].goods.forEach(cGood => { let goodTimestamp = parseInt(cGood.id.split('_')[1]) || 0; if (localClearedAt && goodTimestamp < localClearedAt) return; if (!systemStorage[date].goods.some(lGood => lGood.id === cGood.id)) systemStorage[date].goods.push(cGood); }); }
+            if (cloudSales[date].tickets) { let filteredCloudTickets = cloudSales[date].tickets.filter(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[date].tickets, filteredCloudTickets); }
+            if (cloudSales[date].goods) { let filteredCloudGoods = cloudSales[date].goods.filter(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[date].goods, filteredCloudGoods); }
         }
     }
 }
@@ -1128,7 +1151,7 @@ function addTicketSale() {
     if (time !== "--") {
         let incomingPeople = calculateTicketPeople(type, qty); let existingFilmsInSession = []; let currentSessionPeopleTotal = 0;
         if (systemStorage && systemStorage[date] && systemStorage[date].tickets) {
-            systemStorage[date].tickets.forEach(rec => { if (rec.time === time && rec.program !== "--") { if (!existingFilmsInSession.includes(rec.program)) existingFilmsInSession.push(rec.program); currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); } });
+            systemStorage[date].tickets.forEach(rec => { if (rec.time === time && rec.program !== "--" && rec.qty > 0) { if (!existingFilmsInSession.includes(rec.program)) existingFilmsInSession.push(rec.program); currentSessionPeopleTotal += calculateTicketPeople(rec.type, rec.qty); } });
         }
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
             let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
@@ -1146,7 +1169,7 @@ function triggerOverloadWarning(date, program, time, type, qty, price, calculate
 
 function executeTicketCommit(date, program, time, type, qty, price, mid) {
     initDateKey(date); let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
-    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null });
+    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null, lastModified: Date.now() });
     document.getElementById('ticketMemberId').value = "--"; saveAndRender();
 }
 
@@ -1157,14 +1180,14 @@ function addGoodsSale() {
     if(!date) { showMsg('【提醒】', '請先選擇營運日期！'); return; } if(!barcode) { showMsg('【提醒】', '請先選擇周邊商品！'); return; }
     let reason = "", authUser = ""; if (parsedDiscount !== 1.0) { reason = document.getElementById('goodsDiscountReason').value.trim(); authUser = document.getElementById('goodsDiscountAuthUser').value.trim(); if(!reason || !authUser) { showMsg('【提醒】', '特殊折扣成因與填寫人姓名為必填項目！'); return; } }
     checkAndWarnSafetyStock(barcode, qty); initDateKey(date); let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
-    systemStorage[date].goods.push({ id: 'G_' + Date.now(), timestamp: clockStr, barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: parsedDiscount, discountReason: reason, discountAuthUser: authUser, memberId: mid, audit: null });
+    systemStorage[date].goods.push({ id: 'G_' + Date.now(), timestamp: clockStr, barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: parsedDiscount, discountReason: reason, discountAuthUser: authUser, memberId: mid, audit: null, lastModified: Date.now() });
     document.getElementById('goodsDiscountReason').value = ""; document.getElementById('goodsDiscountAuthUser').value = ""; document.getElementById('goodsDiscount').value = "1.0"; document.getElementById('goodsMemberId').value = "--"; toggleDiscountAuthZone(); saveAndRender();
 }
 
 function checkAndWarnSafetyStock(barcode, incomingQty) {
-    if (incomingQty >= 0) return; let salesNeeded = Math.abs(incomingQty); let totalSoldBefore = 0;
-    for(let d in systemStorage) { if(systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { if(g.barcode === barcode && g.qty < 0) totalSoldBefore += Math.abs(g.qty); }); } }
-    let item = goodsDatabase[barcode]; let expectedStock = item.initStock - (totalSoldBefore + salesNeeded); if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件！`);
+    if (incomingQty >= 0) return; let salesNeeded = Math.abs(incomingQty); let totalSoldBefore = 0; let totalRestockedBefore = 0;
+    for(let d in systemStorage) { if(systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { if(g.barcode === barcode) { if (g.qty < 0) totalSoldBefore += Math.abs(g.qty); else if (g.qty > 0) totalRestockedBefore += g.qty; } }); } }
+    let item = goodsDatabase[barcode]; let expectedStock = item.initStock - (totalSoldBefore + salesNeeded) + totalRestockedBefore; if (expectedStock < item.safetyStock) showMsg('【提醒】', `🚨 庫警：商品【${item.name}】預估庫存將降至 ${expectedStock} 件！`);
 }
 
 document.getElementById('barcodeScanner').addEventListener('keypress', function(e) {
@@ -1209,6 +1232,7 @@ function switchBackendTab(tab) {
     document.getElementById('bZoneProg').style.display = tab === 'Prog' ? 'block' : 'none'; document.getElementById('bZoneTicket').style.display = tab === 'Ticket' ? 'block' : 'none';
     document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none'; document.getElementById('bZoneUsers').style.display = tab === 'Users' ? 'block' : 'none'; document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
     document.getElementById('bZoneVend').style.display = tab === 'Vend' ? 'block' : 'none'; document.getElementById('bZoneMasterUsers').style.display = tab === 'MasterUsers' ? 'block' : 'none';
+    if (tab !== 'Goods') resetGoodsFormLock();
 }
 
 function submitNewStaffAccount() {
@@ -1314,6 +1338,7 @@ function submitNewGoods() {
         goodsDatabase[bc] = { name: name, price: price, initStock: initStock, safetyStock: safety };
         delete deletedGoodsKeys[bc];
         pushLog(`更新周邊: [${bc}] ${name}`); document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
+        resetGoodsFormLock();
         renderBackendLists(); initStaticDropdowns(); saveAndRender(); showMsg('【提醒】', "周邊資料配置成功！");
     } else { showMsg('【提醒】', "請填寫完整欄位！"); }
 }
@@ -1324,7 +1349,7 @@ function renderBackendLists() {
     programList.forEach((p, idx) => { 
         let moveUpBtn = idx > 0 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveProgramOrder(${idx}, -1)">⬆️</button>` : '';
         let moveDownBtn = idx < programList.length - 1 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveProgramOrder(${idx}, 1)">⬇️</button>` : '';
-        pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div></div>`; 
+        pList.innerHTML += `<div class="backend-list-item"><span>${p}</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm" style="background:#3498db;" onclick="editProgram(${idx})">✏️ 編輯</button><button class="btn-sm btn-accent" onclick="deleteProg(${idx})">🗑️ 刪除</button></div></div>`; 
     });
     
     let tList = document.getElementById('backendTicketList'); tList.innerHTML = ''; let tKeys = Object.keys(ticketTypeDatabase);
@@ -1341,14 +1366,65 @@ function renderBackendLists() {
         }
         let moveUpBtn = idx > 0 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveTicketOrder('${tName}', -1)">⬆️</button>` : '';
         let moveDownBtn = idx < tKeys.length - 1 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveTicketOrder('${tName}', 1)">⬇️</button>` : '';
-        tList.innerHTML += `<div class="backend-list-item"><span>${tName} (${priceLabel} / 計 ${seats}人)</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div></div>`; 
+        tList.innerHTML += `<div class="backend-list-item"><span>${tName} (${priceLabel} / 計 ${seats}人)</span><div>${moveUpBtn}${moveDownBtn}<button class="btn-sm" style="background:#3498db;" onclick="editTicket('${tName}')">✏️ 編輯</button><button class="btn-sm btn-accent" onclick="deleteTicket('${tName}')">🗑️ 刪除</button></div></div>`; 
     });
     
     let gList = document.getElementById('backendGoodsList'); gList.innerHTML = '<h4>現有周邊品項清單</h4>';
-    for(let barcode in goodsDatabase) { gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div>`; }
+    for(let barcode in goodsDatabase) { gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><div><button class="btn-sm" style="background:#3498db;" onclick="editGoods('${barcode}')">✏️ 編輯</button><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div></div>`; }
 
     let vList = document.getElementById('backendVendorList'); vList.innerHTML = '<h4>現有合作櫃位/廠商資料庫名冊</h4>';
-    for(let vId in vendorDatabase) { let labelName = (vId === "--") ? "無" : vendorDatabase[vId]; vList.innerHTML += `<div class="backend-list-item"><span><strong>[${vId}]</strong> ${labelName}</span><button class="btn-sm btn-accent" onclick="deleteVendor('${vId}')">🗑️ 刪除</button></div>`; }
+    for(let vId in vendorDatabase) { let labelName = (vId === "--") ? "無" : vendorDatabase[vId]; vList.innerHTML += `<div class="backend-list-item"><span><strong>[${vId}]</strong> ${labelName}</span><div>${vId !== "--" ? `<button class="btn-sm" style="background:#3498db;" onclick="editVendor('${vId}')">✏️ 編輯</button>` : ''}<button class="btn-sm btn-accent" onclick="deleteVendor('${vId}')">🗑️ 刪除</button></div></div>`; }
+}
+
+// ===== 編輯功能：點擊清單項目，將現有資料載回輸入欄位，方便修改後直接覆寫儲存 =====
+// 🎯 設計原則：票種/商品定價/廠商/節目皆可自由編輯（不影響歷史已發生的交易紀錄，那些紀錄各自獨立保存當時的單價）
+// 商品初始庫存不開放編輯，因為那是盤點計算的基準值，若需訂正應透過前台補登調整紀錄留下軌跡
+let editingTicketName = null; let editingGoodsBarcode = null; let editingVendorId = null; let editingProgramIdx = null;
+
+function editProgram(idx) {
+    editingProgramIdx = idx;
+    document.getElementById('newProgName').value = programList[idx];
+    showMsg('【提醒】', `已載入「${programList[idx]}」，修改名稱後請按「建立」按鈕儲存變更。`);
+}
+
+function editTicket(tName) {
+    editingTicketName = tName;
+    let item = ticketTypeDatabase[tName];
+    document.getElementById('newTicketName').value = tName;
+    document.getElementById('newTicketPriceWeekday').value = item.priceWeekday !== undefined ? item.priceWeekday : (item.price || 0);
+    document.getElementById('newTicketPriceHoliday').value = item.priceHoliday !== undefined ? item.priceHoliday : (item.price || 0);
+    document.getElementById('newTicketSeatsDefault').value = item.seats !== undefined ? item.seats : 1;
+    showMsg('【提醒】', `已載入「${tName}」的設定，修改後請按「建立或覆蓋票種基本檔」按鈕儲存變更。`);
+}
+
+function editGoods(barcode) {
+    editingGoodsBarcode = barcode;
+    let item = goodsDatabase[barcode];
+    document.getElementById('newGBarcode').value = barcode;
+    document.getElementById('newGBarcode').disabled = true;
+    document.getElementById('newGName').value = item.name;
+    document.getElementById('newGPrice').value = item.price;
+    document.getElementById('newGSafety').value = item.safetyStock;
+    // 🎯 初始庫存鎖定不可編輯：顯示目前數值供參考，但欄位disabled，若要調整需用前台補登紀錄
+    document.getElementById('newGInit').value = item.initStock;
+    document.getElementById('newGInit').disabled = true;
+    document.getElementById('newGInitLockedHint').style.display = 'block';
+    showMsg('【提醒】', `已載入「${item.name}」的設定。初始庫存無法在此修改，如需訂正請使用前台「周邊登記」補登一筆調整數量。`);
+}
+
+function editVendor(vId) {
+    editingVendorId = vId;
+    document.getElementById('newVId').value = vId;
+    document.getElementById('newVName').value = vendorDatabase[vId];
+    showMsg('【提醒】', `已載入「${vendorDatabase[vId]}」，修改後請按「儲存基本檔」按鈕儲存變更。`);
+}
+
+// 新增商品表單若手動清空重新填寫(非編輯模式)，初始庫存與條碼欄位需要解鎖
+function resetGoodsFormLock() {
+    editingGoodsBarcode = null;
+    document.getElementById('newGInit').disabled = false;
+    document.getElementById('newGBarcode').disabled = false;
+    document.getElementById('newGInitLockedHint').style.display = 'none';
 }
 
 function switchForm(form) {
@@ -1365,8 +1441,8 @@ function switchView(view) {
 }
 
 function loadDateData() {
-    let date = getActiveDate(); let globalGoodsSalesCount = {};
-    for(let d in systemStorage) { if(systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!globalGoodsSalesCount[item.barcode]) globalGoodsSalesCount[item.barcode] = 0; globalGoodsSalesCount[item.barcode] += Math.abs(item.qty); } }); } }
+    let date = getActiveDate(); let globalGoodsSalesCount = {}; let globalGoodsRestockCount = {};
+    for(let d in systemStorage) { if(systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!globalGoodsSalesCount[item.barcode]) globalGoodsSalesCount[item.barcode] = 0; globalGoodsSalesCount[item.barcode] += Math.abs(item.qty); } else if(item.qty > 0) { if(!globalGoodsRestockCount[item.barcode]) globalGoodsRestockCount[item.barcode] = 0; globalGoodsRestockCount[item.barcode] += item.qty; } }); } }
     let tSum = 0, tPeople = 0, gSum = 0; let rTicketTypeMap = {}, rProgramPeopleMap = {}, rGoodsMap = {};
     if (systemStorage[date]) {
         if(systemStorage[date].tickets) {
@@ -1423,13 +1499,13 @@ function loadDateData() {
         }
     } else if (currentView === 'Session') {
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {}; let kartQtyTotal = 0; let kartAmountTotal = 0;
-        if (systemStorage[date] && systemStorage[date].tickets) { systemStorage[date].tickets.forEach(rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--") { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty); } }); }
+        if (systemStorage[date] && systemStorage[date].tickets) { systemStorage[date].tickets.forEach(rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--" && rec.qty > 0) { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty); } }); }
         let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
         let autoRowNo = 1; sortedSessions.forEach(time => { let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8; sBody.innerHTML += `<tr><td><strong style='color:#718096;'>${autoRowNo}</strong></td><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`; autoRowNo++; });
         if (kartQtyTotal > 0) { sBody.innerHTML += `<tr style="background:#fffbeb; border-top:2px solid #fef3c7;"><td><span style='color:#b45309;'>🏎️ 賽車</span></td><td>--</td><td><span style="color:#d97706; font-weight:bold;">隨到隨開場：極速賽車項目</span></td><td style="font-weight:bold; color:#b45309;">${kartQtyTotal} 人次</td><td>--</td><td><span style="color:#b45309; font-weight:bold;">當日累計收：$ ${kartAmountTotal.toLocaleString()}</span></td></tr>`; }
     } else if (currentView === 'Stock') {
         let stockBody = document.getElementById('stockTableBody'); stockBody.innerHTML = '';
-        for(let barcode in goodsDatabase) { let item = goodsDatabase[barcode]; let soldQty = globalGoodsSalesCount[barcode] || 0; let currentStock = item.initStock - soldQty; let isAlert = currentStock < item.safetyStock; stockBody.innerHTML += `<tr><td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存不足':'✅ 庫存安全'}</td></tr>`; }
+        for(let barcode in goodsDatabase) { let item = goodsDatabase[barcode]; let soldQty = globalGoodsSalesCount[barcode] || 0; let restockQty = globalGoodsRestockCount[barcode] || 0; let currentStock = item.initStock - soldQty + restockQty; let isAlert = currentStock < item.safetyStock; stockBody.innerHTML += `<tr><td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td style="color:#2b6cb0;">${restockQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存不足':'✅ 庫存安全'}</td></tr>`; }
     } else if (currentView === 'Month') {
         let monthBody = document.getElementById('monthTableBody'); monthBody.innerHTML = ''; let allDates = Object.keys(systemStorage).sort(); let filteredDates = allDates.filter(d => d >= rangeQueryStart && d <= rangeQueryEnd); if(filteredDates.length === 0) monthBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">此選取查詢區間內目前尚無營業數據</td></tr>`;
         filteredDates.forEach(d => { let dT = 0, dP = 0, dG = 0; if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += calculateTicketPeople(x.type, x.qty); }); if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); }); monthBody.innerHTML += `<tr><td><strong>${d}</strong></td><td>$ ${dT.toLocaleString()}</td><td>${dP} 人次</td><td>$ ${dG.toLocaleString()}</td><td><strong>$ ${(dT + dG).toLocaleString()}</strong></td></tr>`; });
@@ -1450,8 +1526,8 @@ function openEditModal(type, id, itemDate) {
 
 function submitModalEdit() {
     let t = currentEditTarget; let user = document.getElementById('modUser').value.trim(); let reason = document.getElementById('modReason').value.trim(); if(!user || !reason) { showMsg('【提醒】', "填寫人與理由為必填！"); return; }
-    if (t.type === 'Ticket') { let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id); rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value); rec.amount = rec.qty * rec.price; rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; } 
-    else { let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value); rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; }
+    if (t.type === 'Ticket') { let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id); rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value); rec.amount = rec.qty * rec.price; rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; rec.lastModified = Date.now(); } 
+    else { let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value); rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; rec.lastModified = Date.now(); }
     closeModal('auditModal'); saveAndRender();
 }
 
