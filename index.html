@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v62</title>
+    <title>VOLARE 智慧雲端安全營運系統 v63</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -442,7 +442,10 @@
 
             <div id="bZoneProg">
                 <h3>新增影片</h3>
-                <div class="form-row form-group"><input type="text" id="newProgName" placeholder="請輸入影片名稱" style="flex:2;"><button onclick="submitNewProgram()" style="flex:1; background:var(--success-color);">建立</button></div>
+                <div class="form-row form-group" style="align-items:flex-end;">
+                    <div style="flex:2;"><label>影片名稱</label><input type="text" id="newProgName" placeholder="請輸入影片名稱"></div>
+                    <button onclick="submitNewProgram()" style="flex:1; background:var(--success-color);">建立</button>
+                </div>
                 <div id="backendProgList" style="max-height:200px; overflow-y:auto;"></div>
             </div>
 
@@ -450,10 +453,10 @@
                 <h3>新增/修改營業票種人次</h3>
                 <div class="form-group">
                     <div class="form-row" style="margin-bottom:5px;">
-                        <input type="text" id="newTicketName" placeholder="請輸入票種名稱" style="flex:2;">
-                        <input type="number" id="newTicketPriceWeekday" placeholder="平日價" style="flex:1;">
-                        <input type="number" id="newTicketPriceHoliday" placeholder="假日價" style="flex:1;">
-                        <input type="number" id="newTicketSeatsDefault" placeholder="人次計算" min="0" step="0.5" style="flex:1;">
+                        <div style="flex:2;"><label>票種名稱</label><input type="text" id="newTicketName" placeholder="請輸入票種名稱"></div>
+                        <div style="flex:1;"><label>平日價</label><input type="number" id="newTicketPriceWeekday" placeholder="平日價"></div>
+                        <div style="flex:1;"><label>假日價</label><input type="number" id="newTicketPriceHoliday" placeholder="假日價"></div>
+                        <div style="flex:1;"><label>人次計算</label><input type="number" id="newTicketSeatsDefault" placeholder="人次計算" min="0" step="0.5"></div>
                     </div>
                     <button onclick="submitNewTicket()" style="background:var(--success-color);">建立或覆蓋票種基本檔</button>
                 </div>
@@ -463,9 +466,16 @@
             <div id="bZoneGoods" style="display:none;">
                 <h3>建立/更新周邊商品基本檔</h3>
                 <div class="form-group">
-                    <div class="form-row" style="margin-bottom: 5px;"><input type="text" id="newGBarcode" placeholder="請輸入國際條碼" style="flex:1;"><input type="text" id="newGName" placeholder="請輸入商品品名" style="flex:1;"></div>
-                    <div class="form-row"><input type="number" id="newGPrice" placeholder="零售定價" style="flex:1;"><input type="number" id="newGInit" placeholder="初始入庫量" style="flex:1;"><input type="number" id="newGSafety" placeholder="安全庫存量" style="flex:1;"></div>
-                    <div id="newGInitLockedHint" style="display:none; font-size:12px; color:#b45309; background:#fff7ed; padding:6px 10px; border-radius:4px; margin-top:6px;">⚠️ 初始庫存為盤點計算基準值，編輯模式下無法修改。如需訂正，請使用前台「周邊登記」功能補登一筆調整數量，確保所有庫存變動皆有紀錄可查。</div>
+                    <div class="form-row" style="margin-bottom: 10px;">
+                        <div style="flex:1;"><label id="newGBarcodeLabel">國際條碼</label><input type="text" id="newGBarcode" placeholder="請輸入國際條碼"></div>
+                        <div style="flex:1;"><label>商品品名</label><input type="text" id="newGName" placeholder="請輸入商品品名"></div>
+                    </div>
+                    <div class="form-row">
+                        <div style="flex:1;"><label>零售定價</label><input type="number" id="newGPrice" placeholder="零售定價"></div>
+                        <div style="flex:1;"><label id="newGInitLabel">初始入庫量</label><input type="number" id="newGInit" placeholder="初始入庫量"></div>
+                        <div style="flex:1;"><label>安全庫存量</label><input type="number" id="newGSafety" placeholder="安全庫存量"></div>
+                    </div>
+                    <div id="newGInitLockedHint" style="display:none; font-size:12px; color:#b45309; background:#fff7ed; padding:6px 10px; border-radius:4px; margin-top:6px;">⚠️ 國際條碼與初始庫存為盤點計算基準值，編輯模式下無法修改（已標示🔒）。如需訂正庫存，請使用前台「周邊登記」功能補登一筆調整數量，確保所有庫存變動皆有紀錄可查。</div>
                     <div class="form-row" style="margin-top:8px;">
                         <button onclick="submitNewGoods()" style="background:var(--success-color);">儲存並寫入基本檔</button>
                         <button onclick="resetGoodsFormLock(); document.getElementById('newGBarcode').value=''; document.getElementById('newGName').value=''; document.getElementById('newGPrice').value=''; document.getElementById('newGInit').value=''; document.getElementById('newGSafety').value='';" style="background:#7f8c8d;">清空表單 / 新增模式</button>
@@ -477,9 +487,9 @@
             <div id="bZoneVend" style="display:none;">
                 <h3>🤝 新增/修改合作廠商會員資料庫</h3>
                 <div class="form-group">
-                    <div class="form-row">
-                        <input type="text" id="newVId" placeholder="請輸入會員/廠商代碼" style="flex:1;">
-                        <input type="text" id="newVName" placeholder="請輸入櫃位廠商名稱" style="flex:1;">
+                    <div class="form-row" style="align-items:flex-end;">
+                        <div style="flex:1;"><label>會員/廠商代碼</label><input type="text" id="newVId" placeholder="請輸入會員/廠商代碼"></div>
+                        <div style="flex:1;"><label>櫃位廠商名稱</label><input type="text" id="newVName" placeholder="請輸入櫃位廠商名稱"></div>
                         <button onclick="submitNewVendor()" style="flex:1; background:var(--success-color);">儲存基本檔</button>
                     </div>
                 </div>
@@ -1232,7 +1242,11 @@ function switchBackendTab(tab) {
     document.getElementById('bZoneProg').style.display = tab === 'Prog' ? 'block' : 'none'; document.getElementById('bZoneTicket').style.display = tab === 'Ticket' ? 'block' : 'none';
     document.getElementById('bZoneGoods').style.display = tab === 'Goods' ? 'block' : 'none'; document.getElementById('bZoneUsers').style.display = tab === 'Users' ? 'block' : 'none'; document.getElementById('bZonePass').style.display = tab === 'Pass' ? 'block' : 'none';
     document.getElementById('bZoneVend').style.display = tab === 'Vend' ? 'block' : 'none'; document.getElementById('bZoneMasterUsers').style.display = tab === 'MasterUsers' ? 'block' : 'none';
-    if (tab !== 'Goods') resetGoodsFormLock();
+    // 🎯 離開周邊商品分頁時，若仍處於編輯狀態，連同表單內容一起清空，避免切回時欄位解鎖但殘留舊資料造成混淆
+    if (tab !== 'Goods' && editingGoodsBarcode !== null) {
+        document.getElementById('newGBarcode').value = ''; document.getElementById('newGName').value = ''; document.getElementById('newGPrice').value = ''; document.getElementById('newGInit').value = ''; document.getElementById('newGSafety').value = '';
+        resetGoodsFormLock();
+    }
 }
 
 function submitNewStaffAccount() {
@@ -1401,15 +1415,12 @@ function editGoods(barcode) {
     editingGoodsBarcode = barcode;
     let item = goodsDatabase[barcode];
     document.getElementById('newGBarcode').value = barcode;
-    document.getElementById('newGBarcode').disabled = true;
     document.getElementById('newGName').value = item.name;
     document.getElementById('newGPrice').value = item.price;
     document.getElementById('newGSafety').value = item.safetyStock;
-    // 🎯 初始庫存鎖定不可編輯：顯示目前數值供參考，但欄位disabled，若要調整需用前台補登紀錄
     document.getElementById('newGInit').value = item.initStock;
-    document.getElementById('newGInit').disabled = true;
-    document.getElementById('newGInitLockedHint').style.display = 'block';
-    showMsg('【提醒】', `已載入「${item.name}」的設定。初始庫存無法在此修改，如需訂正請使用前台「周邊登記」補登一筆調整數量。`);
+    applyGoodsFormLockState(true);
+    showMsg('【提醒】', `已載入「${item.name}」的設定。國際條碼與初始庫存無法在此修改，如需訂正請使用前台「周邊登記」補登一筆調整數量。`);
 }
 
 function editVendor(vId) {
@@ -1419,12 +1430,20 @@ function editVendor(vId) {
     showMsg('【提醒】', `已載入「${vendorDatabase[vId]}」，修改後請按「儲存基本檔」按鈕儲存變更。`);
 }
 
+// 🎯 統一管理周邊表單的鎖定狀態（條碼+初始庫存），確保標題上的🔒圖示與欄位disabled狀態永遠一致
+// 任何會顯示/隱藏 bZoneGoods 的地方都應呼叫這個函式，而不是各自直接操作 disabled 屬性，避免狀態不同步
+function applyGoodsFormLockState(isLocked) {
+    document.getElementById('newGBarcode').disabled = isLocked;
+    document.getElementById('newGInit').disabled = isLocked;
+    document.getElementById('newGInitLockedHint').style.display = isLocked ? 'block' : 'none';
+    document.getElementById('newGBarcodeLabel').innerHTML = isLocked ? '國際條碼 🔒' : '國際條碼';
+    document.getElementById('newGInitLabel').innerHTML = isLocked ? '初始入庫量 🔒' : '初始入庫量';
+}
+
 // 新增商品表單若手動清空重新填寫(非編輯模式)，初始庫存與條碼欄位需要解鎖
 function resetGoodsFormLock() {
     editingGoodsBarcode = null;
-    document.getElementById('newGInit').disabled = false;
-    document.getElementById('newGBarcode').disabled = false;
-    document.getElementById('newGInitLockedHint').style.display = 'none';
+    applyGoodsFormLockState(false);
 }
 
 function switchForm(form) {
