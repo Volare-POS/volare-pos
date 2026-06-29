@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v67</title>
+    <title>VOLARE 智慧雲端安全營運系統 v68</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -534,6 +534,14 @@
                         <input type="date" id="clearBeforeDateInput" style="flex:1;">
                         <button onclick="executeClearBeforeDate()" class="btn-accent" style="flex:1; padding:10px; font-size:13px;">🗑️ 清除此日期之前的所有紀錄</button>
                     </div>
+                    <hr style="margin:16px 0; border-color:#fca5a5;">
+                    <h4 style="color:#b91c1c; margin:0 0 8px 0;">🔐 歷史紀錄編輯授權管理</h4>
+                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">僅授權清單內的帳號可以修改「非當日」的票券/商品歷史紀錄。當天與未來日期的紀錄修改不受此限制，所有後台帳號皆可操作。</p>
+                    <div class="form-row" style="align-items:center;">
+                        <select id="historyEditStaffSelect" style="flex:2;"></select>
+                        <button onclick="submitHistoryEditAuth()" style="flex:1; background:var(--success-color);">✅ 授權</button>
+                    </div>
+                    <div id="historyEditAuthList" style="margin-top:10px; max-height:150px; overflow-y:auto;"></div>
                 </div>
                 <h3 style="margin:0 0 10px 0;">📜 後台歷史人員異動操作紀錄</h3>
                 <div class="log-box" id="adminLogContainer"></div>
@@ -744,6 +752,10 @@ let deletedGoodsKeys = JSON.parse(localStorage.getItem('volare_deleted_goods')) 
 let deletedVendorKeys = JSON.parse(localStorage.getItem('volare_deleted_vendors')) || {};
 let deletedStaffKeys = JSON.parse(localStorage.getItem('volare_deleted_staff')) || {};
 
+// 🎯 歷史紀錄編輯授權清單：只有清單內的帳號能修改「非當日」的票券/商品紀錄，amy_chung 永遠在清單內且不可移除
+let historyEditAuthorizedStaff = JSON.parse(localStorage.getItem('volare_history_edit_staff')) || { "amy_chung@brogentglobal.com": true };
+
+
 let systemStorage = {};
 let currentView = 'Day'; let currentBackendTab = 'Prog'; let currentEditTarget = null;
 let currentOperatorName = ""; let rangeQueryStart = ""; let rangeQueryEnd = "";
@@ -925,7 +937,8 @@ function pushToCloud() {
         ticketTypeDatabase: JSON.parse(JSON.stringify(ticketTypeDatabase)),
         goodsDatabase: JSON.parse(JSON.stringify(goodsDatabase)),
         vendorDatabase: JSON.parse(JSON.stringify(vendorDatabase)),
-        staffDatabase: JSON.parse(JSON.stringify(staffDatabase))
+        staffDatabase: JSON.parse(JSON.stringify(staffDatabase)),
+        historyEditAuthorizedStaff: JSON.parse(JSON.stringify(historyEditAuthorizedStaff))
     };
 
     fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
@@ -950,12 +963,13 @@ function restoreLocalSnapshotValues(snapshot) {
     for (let key in snapshot.goodsDatabase) { goodsDatabase[key] = snapshot.goodsDatabase[key]; }
     for (let key in snapshot.vendorDatabase) { vendorDatabase[key] = snapshot.vendorDatabase[key]; }
     for (let key in snapshot.staffDatabase) { staffDatabase[key] = snapshot.staffDatabase[key]; }
+    for (let key in snapshot.historyEditAuthorizedStaff) { historyEditAuthorizedStaff[key] = snapshot.historyEditAuthorizedStaff[key]; }
 }
 
 function sendPushPayload(activeDate, syncTimeout) {
     let salesForThisDay = {};
     if (systemStorage[activeDate]) salesForThisDay[activeDate] = systemStorage[activeDate];
-    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys } } };
+    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff } } };
     fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json()).then(resData => { clearTimeout(syncTimeout); isSyncing = false; if(resData && resData.status === "success") setSyncIndicator('success'); else setSyncIndicator('fail'); })
     .catch(err => { clearTimeout(syncTimeout); isSyncing = false; setSyncIndicator('fail'); });
@@ -1018,6 +1032,8 @@ function unpackCloudConfig(cfg) {
     if (cfg.vendorDatabase && Object.keys(cfg.vendorDatabase).length > 0) vendorDatabase = Object.assign({}, vendorDatabase, cfg.vendorDatabase);
     // 🎯 initialLoginDatabase（大門帳號）目前無刪除墓碑機制，沿用原本合併方式
     if (cfg.initialLoginDatabase && Object.keys(cfg.initialLoginDatabase).length > 0) initialLoginDatabase = Object.assign({}, initialLoginDatabase, cfg.initialLoginDatabase);
+    if (cfg.historyEditAuthorizedStaff && Object.keys(cfg.historyEditAuthorizedStaff).length > 0) historyEditAuthorizedStaff = Object.assign({}, historyEditAuthorizedStaff, cfg.historyEditAuthorizedStaff);
+    historyEditAuthorizedStaff["amy_chung@brogentglobal.com"] = true; // 最高管理者永遠保有此權限，不受任何合併結果影響
 
     // 🎯 合併完成後，把所有已標記刪除的 key 從各資料庫中徹底移除，不管是哪台裝置寫回來的舊資料都會被排除
     applyDeletionTombstones(ticketTypeDatabase, deletedTicketKeys);
@@ -1028,6 +1044,7 @@ function unpackCloudConfig(cfg) {
     localStorage.setItem('volare_initial_login_db', JSON.stringify(initialLoginDatabase)); localStorage.setItem('volare_programs_v13', JSON.stringify(programList));
     localStorage.setItem('volare_staff_db_v16', JSON.stringify(staffDatabase)); localStorage.setItem('volare_ticket_db_v16', JSON.stringify(ticketTypeDatabase)); localStorage.setItem('volare_goods_db_v13', JSON.stringify(goodsDatabase)); localStorage.setItem('volare_vendor_db_v1', JSON.stringify(vendorDatabase));
     localStorage.setItem('volare_deleted_tickets', JSON.stringify(deletedTicketKeys)); localStorage.setItem('volare_deleted_goods', JSON.stringify(deletedGoodsKeys)); localStorage.setItem('volare_deleted_vendors', JSON.stringify(deletedVendorKeys)); localStorage.setItem('volare_deleted_staff', JSON.stringify(deletedStaffKeys));
+    localStorage.setItem('volare_history_edit_staff', JSON.stringify(historyEditAuthorizedStaff));
 }
 
 // 合併兩份墓碑清單，同一個key取較新的刪除時間（代表那是更晚發生、更權威的操作紀錄）
@@ -1167,6 +1184,43 @@ function renderLogBox() {
     let container = document.getElementById('adminLogContainer'); if(container) container.innerHTML = adminLogs.length === 0 ? "目前尚無後台操作紀錄" : adminLogs.join('<br>');
 }
 
+// 🎯 歷史紀錄編輯授權清單渲染與操作（僅 amy_chung 可見此區塊）
+function renderHistoryEditAuthList() {
+    let selectEl = document.getElementById('historyEditStaffSelect');
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    for (let acc in staffDatabase) {
+        if (!historyEditAuthorizedStaff[acc]) { selectEl.innerHTML += `<option value="${acc}">${acc}</option>`; }
+    }
+    if (selectEl.innerHTML === '') selectEl.innerHTML = '<option value="">（所有後台帳號皆已授權）</option>';
+
+    let listEl = document.getElementById('historyEditAuthList');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    for (let acc in historyEditAuthorizedStaff) {
+        if (!historyEditAuthorizedStaff[acc]) continue;
+        let isProtected = acc === 'amy_chung@brogentglobal.com';
+        let removeBtn = isProtected ? `<span style="color:#999; font-size:12px;">(最高管理者，永不移除)</span>` : `<button class="btn-sm btn-accent" onclick="removeHistoryEditAuth('${acc}')">🗑️ 取消授權</button>`;
+        listEl.innerHTML += `<div class="backend-list-item"><span>✅ ${acc}</span>${removeBtn}</div>`;
+    }
+}
+
+function submitHistoryEditAuth() {
+    let acc = document.getElementById('historyEditStaffSelect').value;
+    if (!acc) { showMsg('【提醒】', "目前沒有可授權的帳號！"); return; }
+    historyEditAuthorizedStaff[acc] = true;
+    pushLog(`授權 ${acc} 可編輯歷史紀錄`);
+    renderHistoryEditAuthList(); saveAndRender();
+    showMsg('【提醒】', `🔐 已授權【${acc}】編輯歷史紀錄！`);
+}
+
+function removeHistoryEditAuth(acc) {
+    if (acc === 'amy_chung@brogentglobal.com') return showMsg('【提醒】', "最高管理者權限不可移除！");
+    showMsg('【取消授權確認】', `確定要取消【${acc}】編輯歷史紀錄的權限嗎？`, true, function(approved) {
+        if (approved) { delete historyEditAuthorizedStaff[acc]; pushLog(`取消了 ${acc} 編輯歷史紀錄的權限`); renderHistoryEditAuthList(); saveAndRender(); }
+    });
+}
+
 function addTicketSale() {
     let date = getActiveDate(); let program = document.getElementById('ticketProgram').value;
     let time = document.getElementById('timeHour').value + ':' + document.getElementById('timeMin').value;
@@ -1198,7 +1252,10 @@ function triggerOverloadWarning(date, program, time, type, qty, price, calculate
 
 function executeTicketCommit(date, program, time, type, qty, price, mid) {
     initDateKey(date); let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
-    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null, lastModified: Date.now() });
+    // 🎯 寫入當下就固定保存人次計算結果，避免日後修改票種 seats 設定回頭影響歷史報表（與 amount 同樣的保護原則）
+    let peopleAtEntry = calculateTicketPeople(type, qty);
+    let experienceAtEntry = calculateRealExperienceCount(type, qty);
+    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null, lastModified: Date.now(), people: peopleAtEntry, experienceCount: experienceAtEntry });
     document.getElementById('ticketMemberId').value = "--"; saveAndRender();
 }
 
@@ -1253,7 +1310,7 @@ function unlockBackendControl() {
     else { document.getElementById('masterClearDataZone').style.display = 'none'; document.getElementById('bTabMasterUsers').style.display = 'none'; document.getElementById('bTabUsers').style.display = 'none'; }
     document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentOperatorName === 'amy_chung@brogentglobal.com' ? '最高權限主管' : '一般一線使用者'})`;
     switchBackendTab('Prog');
-    renderBackendLists(); renderLogBox(); renderStaffList();
+    renderBackendLists(); renderLogBox(); renderStaffList(); renderHistoryEditAuthList();
 }
 
 function switchBackendTab(tab) {
@@ -1521,7 +1578,7 @@ function loadDateData() {
     if (systemStorage[date]) {
         if(systemStorage[date].tickets) {
             systemStorage[date].tickets.forEach(x => { 
-                tSum += x.amount; tPeople += calculateTicketPeople(x.type, x.qty); let actualExperiences = calculateRealExperienceCount(x.type, x.qty);
+                tSum += x.amount; let peopleVal = x.people !== undefined ? x.people : calculateTicketPeople(x.type, x.qty); tPeople += peopleVal; let actualExperiences = x.experienceCount !== undefined ? x.experienceCount : calculateRealExperienceCount(x.type, x.qty);
                 rTicketTypeMap[x.type] = (rTicketTypeMap[x.type] || 0) + x.qty; rProgramPeopleMap[x.program] = (rProgramPeopleMap[x.program] || 0) + actualExperiences;
             });
         }
@@ -1556,7 +1613,7 @@ function loadDateData() {
         if (systemStorage[date]) {
             if(systemStorage[date].tickets) {
                 systemStorage[date].tickets.forEach(item => {
-                    let peopleCount = calculateTicketPeople(item.type, item.qty); let clockHtml = item.timestamp ? `<span style="color:#7f8c8d; font-family:monospace;">[${item.timestamp}]</span>` : `<span style="color:#cbd5e0;">--</span>`;
+                    let peopleCount = item.people !== undefined ? item.people : calculateTicketPeople(item.type, item.qty); let clockHtml = item.timestamp ? `<span style="color:#7f8c8d; font-family:monospace;">[${item.timestamp}]</span>` : `<span style="color:#cbd5e0;">--</span>`;
                     let vendorName = (item.memberId === "--" || !vendorDatabase[item.memberId]) ? "無" : `${item.memberId} [${vendorDatabase[item.memberId]}]`;
                     let auditLogHtml = item.audit ? `<tr><td colspan="10"><div class="audit-inline-log">🚨 【修改說明】填寫人：<strong>${item.audit.user}</strong> | 理由：${item.audit.reason} (${item.audit.time})</div></td></tr>` : '';
                     ticketBody.innerHTML += `<tr ${item.audit ? 'class="modified-row"':''}><td>${clockHtml}</td><td>${item.program}</td><td>${item.time}</td><td>${item.type}</td><td>$ ${item.price}</td><td>${item.qty} 張</td><td><strong>$ ${item.amount.toLocaleString()}</strong></td><td>${peopleCount} 人次</td><td style="color:#2b6cb0; font-weight:bold;">${vendorName}</td><td><button class="btn-sm" onclick="openEditModal('Ticket', '${item.id}', '${date}')">✍️ 修改</button></td></tr>${auditLogHtml}`;
@@ -1573,7 +1630,7 @@ function loadDateData() {
         }
     } else if (currentView === 'Session') {
         let sBody = document.getElementById('sessionTableBody'); sBody.innerHTML = ''; let sessionData = {}; let kartQtyTotal = 0; let kartAmountTotal = 0;
-        if (systemStorage[date] && systemStorage[date].tickets) { systemStorage[date].tickets.forEach(rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--" && rec.qty > 0) { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += calculateTicketPeople(rec.type, rec.qty); } }); }
+        if (systemStorage[date] && systemStorage[date].tickets) { systemStorage[date].tickets.forEach(rec => { if (rec.type.includes("極速賽車")) { kartQtyTotal += rec.qty; kartAmountTotal += rec.amount; } else if (rec.time !== "--" && rec.qty > 0) { if (!sessionData[rec.time]) sessionData[rec.time] = { programs: [], people: 0 }; if (!sessionData[rec.time].programs.includes(rec.program)) sessionData[rec.time].programs.push(rec.program); sessionData[rec.time].people += (rec.people !== undefined ? rec.people : calculateTicketPeople(rec.type, rec.qty)); } }); }
         let sortedSessions = Object.keys(sessionData).sort(); if (sortedSessions.length === 0 && kartQtyTotal === 0) sBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">今日目前尚無開場與開車紀錄</td></tr>`;
         let autoRowNo = 1; sortedSessions.forEach(time => { let sInfo = sessionData[time]; let remainSeats = 8 - sInfo.people; let isOver = sInfo.people > 8; sBody.innerHTML += `<tr><td><strong style='color:#718096;'>${autoRowNo}</strong></td><td><strong>${time}</strong></td><td>${sInfo.programs.join(' + ')}</td><td style="font-weight:bold; color:#2b6cb0;">${sInfo.people} 人次</td><td ${isOver ? 'class="stock-alert"':''}>${remainSeats < 0 ? 0 : remainSeats} 席</td><td>${isOver ? '❌ 座位超載【警告】' : (remainSeats===0?'⚠️ 已客滿':'✅ 尚有空位')}</td></tr>`; autoRowNo++; });
         if (kartQtyTotal > 0) { sBody.innerHTML += `<tr style="background:#fffbeb; border-top:2px solid #fef3c7;"><td><span style='color:#b45309;'>🏎️ 賽車</span></td><td>--</td><td><span style="color:#d97706; font-weight:bold;">隨到隨開場：極速賽車項目</span></td><td style="font-weight:bold; color:#b45309;">${kartQtyTotal} 人次</td><td>--</td><td><span style="color:#b45309; font-weight:bold;">當日累計收：$ ${kartAmountTotal.toLocaleString()}</span></td></tr>`; }
@@ -1582,11 +1639,12 @@ function loadDateData() {
         for(let barcode in goodsDatabase) { let item = goodsDatabase[barcode]; let soldQty = globalGoodsSalesCount[barcode] || 0; let restockQty = globalGoodsRestockCount[barcode] || 0; let currentStock = item.initStock - soldQty + restockQty; let isAlert = currentStock < item.safetyStock; stockBody.innerHTML += `<tr><td>${barcode}</td><td><strong>${item.name}</strong></td><td>$ ${item.price}</td><td>${item.initStock}</td><td style="color:red;">${soldQty}</td><td style="color:#2b6cb0;">${restockQty}</td><td ${isAlert ? 'class="stock-alert"':''}>${currentStock}</td><td>${item.safetyStock}</td><td>${isAlert ? '❌ 庫存不足':'✅ 庫存安全'}</td></tr>`; }
     } else if (currentView === 'Month') {
         let monthBody = document.getElementById('monthTableBody'); monthBody.innerHTML = ''; let allDates = Object.keys(systemStorage).sort(); let filteredDates = allDates.filter(d => d >= rangeQueryStart && d <= rangeQueryEnd); if(filteredDates.length === 0) monthBody.innerHTML = `<tr><td colspan="5" style="text-align:center;">此選取查詢區間內目前尚無營業數據</td></tr>`;
-        filteredDates.forEach(d => { let dT = 0, dP = 0, dG = 0; if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += calculateTicketPeople(x.type, x.qty); }); if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); }); monthBody.innerHTML += `<tr><td><strong>${d}</strong></td><td>$ ${dT.toLocaleString()}</td><td>${dP} 人次</td><td>$ ${dG.toLocaleString()}</td><td><strong>$ ${(dT + dG).toLocaleString()}</strong></td></tr>`; });
+        filteredDates.forEach(d => { let dT = 0, dP = 0, dG = 0; if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += (x.people !== undefined ? x.people : calculateTicketPeople(x.type, x.qty)); }); if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); }); monthBody.innerHTML += `<tr><td><strong>${d}</strong></td><td>$ ${dT.toLocaleString()}</td><td>${dP} 人次</td><td>$ ${dG.toLocaleString()}</td><td><strong>$ ${(dT + dG).toLocaleString()}</strong></td></tr>`; });
     }
 }
 
 function openEditModal(type, id, itemDate) {
+    if (!canEditDate(itemDate)) { showMsg('【提醒】', `🔒 ${itemDate} 為歷史資料（非當日），僅限授權人員修改！`); return; }
     currentEditTarget = { type: type, id: id, date: itemDate }; let body = document.getElementById('modalFormBody'); body.innerHTML = '';
     if (type === 'Ticket') {
         let rec = systemStorage[itemDate].tickets.find(t => t.id === id);
@@ -1600,9 +1658,16 @@ function openEditModal(type, id, itemDate) {
 
 function submitModalEdit() {
     let t = currentEditTarget; let user = document.getElementById('modUser').value.trim(); let reason = document.getElementById('modReason').value.trim(); if(!user || !reason) { showMsg('【提醒】', "填寫人與理由為必填！"); return; }
-    if (t.type === 'Ticket') { let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id); rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value); rec.amount = rec.qty * rec.price; rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; rec.lastModified = Date.now(); } 
+    if (!canEditDate(t.date)) { showMsg('【提醒】', "🔒 此筆紀錄為歷史資料（非當日），僅限授權人員修改！"); return; }
+    if (t.type === 'Ticket') { let rec = systemStorage[t.date].tickets.find(tk => tk.id === t.id); rec.qty = parseInt(document.getElementById('modTicketQty').value); rec.price = parseInt(document.getElementById('modTicketPrice').value); rec.amount = rec.qty * rec.price; rec.people = calculateTicketPeople(rec.type, rec.qty); rec.experienceCount = calculateRealExperienceCount(rec.type, rec.qty); rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; rec.lastModified = Date.now(); } 
     else { let rec = systemStorage[t.date].goods.find(g => g.id === t.id); rec.qty = parseInt(document.getElementById('modGoodsQty').value); rec.discount = parseFloat(document.getElementById('modGoodsDiscount').value); rec.audit = { user: user, reason: reason, time: new Date().toLocaleTimeString() }; rec.lastModified = Date.now(); }
     closeModal('auditModal'); saveAndRender();
+}
+
+// 🎯 判斷目前操作者是否能編輯指定日期的紀錄：當天/未來日期一律開放，過去日期僅限歷史編輯授權清單內的帳號
+function canEditDate(dateStr) {
+    if (dateStr >= todayStr) return true; // 當天或未來日期，任何登入後台的人都能操作
+    return historyEditAuthorizedStaff[currentOperatorName] === true;
 }
 
 function exportRangeData() {
@@ -1610,11 +1675,11 @@ function exportRangeData() {
     if(!start || !end || start > end) { showMsg('【提醒】', "請選取正確的日期導出區間！"); return; }
     let csvContent = "\uFEFF"; csvContent += `VOLARE 營運智慧整合區間報表,查詢區間:,${start} 至 ${end}\n\n=== 🎫 票券銷售累計明細 ===\n營業日期,輸入時間,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,會員編號/廠商代碼,內部審計簽核\n`;
     let allDates = Object.keys(systemStorage).sort();
-    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) { systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${calculateTicketPeople(x.type, x.qty)},${x.memberId || '--'},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; }); } });
+    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) { systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${x.people !== undefined ? x.people : calculateTicketPeople(x.type, x.qty)},${x.memberId || '--'},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; }); } });
     csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,輸入時間,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,會員編號/廠商代碼,特殊折扣說明與填寫人,內部審計改單簽核\n";
     allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0; csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId || '--'},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`; }); } });
     csvContent += "\n=== 📊 每日營業加總日報 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
-    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d]) { let dT = 0, dP = 0, dG = 0; if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += calculateTicketPeople(x.type, x.qty); }); if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); }); csvContent += `${d},${dT},${dP},${dG},${dT + dG}\n`; } });
+    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d]) { let dT = 0, dP = 0, dG = 0; if(systemStorage[d].tickets) systemStorage[d].tickets.forEach(x => { dT += x.amount; dP += (x.people !== undefined ? x.people : calculateTicketPeople(x.type, x.qty)); }); if(systemStorage[d].goods) systemStorage[d].goods.forEach(y => { if(y.qty < 0) dG += Math.round(y.price * Math.abs(y.qty) * y.discount); }); csvContent += `${d},${dT},${dP},${dG},${dT + dG}\n`; } });
     csvContent += "\n=== 📦 周邊商品截止此區間總匯盤點表 ===\n國際條碼,商品品名,商品單價,初始庫存,截止累計銷售量,當前剩餘庫存,安全庫存水位,安全預警狀態\n";
     let rangeGoodsSales = {};
     allDates.forEach(d => { if(d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(item => { if(item.qty < 0) { if(!rangeGoodsSales[item.barcode]) rangeGoodsSales[item.barcode] = 0; rangeGoodsSales[item.barcode] += Math.abs(item.qty); } }); } });
