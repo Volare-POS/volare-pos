@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v68</title>
+    <title>VOLARE 智慧雲端安全營運系統 v71</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -292,7 +292,32 @@
         #backendModal { z-index: 1000; } 
         #auditModal { z-index: 2000; }
         #changeMyPasswordModal { z-index: 2000; }
+        #customerProfileModal { z-index: 10010; }
         #globalMsgModal { z-index: 10005; } 
+
+        .cp-option-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .cp-option-btn {
+            width: auto;
+            flex: 1 1 auto;
+            min-width: 70px;
+            padding: 8px 10px;
+            font-size: 13px;
+            background: #e2e8f0;
+            color: #333;
+            border-radius: 6px;
+            font-weight: normal;
+        }
+        .cp-option-btn:hover { background: #cbd5e0; }
+        .cp-option-btn.selected {
+            background: var(--primary-color);
+            color: white;
+            font-weight: bold;
+        }
 
         .summary-report-grid {
             display: grid;
@@ -413,6 +438,42 @@
         <div class="modal-footer" style="margin-top: 20px; display: flex; gap: 10px;">
             <button onclick="submitChangeMyPassword()" style="background:var(--success-color);">確認修改</button>
             <button onclick="closeModal('changeMyPasswordModal')" style="background:#95a5a6;">取消</button>
+        </div>
+    </div>
+</div>
+
+<div id="customerProfileModal" class="modal" style="z-index: 10010;">
+    <div class="modal-content" style="width: 460px;">
+        <div class="modal-header" style="color:var(--primary-color);">📋 顧客組成紀錄</div>
+        <div class="form-group">
+            <label>顧客組成</label>
+            <div class="cp-option-group" data-question="composition">
+                <button type="button" class="cp-option-btn" data-value="親子">親子</button>
+                <button type="button" class="cp-option-btn" data-value="情侶/夫妻">情侶/夫妻</button>
+                <button type="button" class="cp-option-btn" data-value="好友/團體">好友/團體</button>
+                <button type="button" class="cp-option-btn" data-value="單人">單人</button>
+                <button type="button" class="cp-option-btn" data-value="外籍遊客">外籍遊客</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>體驗目的</label>
+            <div class="cp-option-group" data-question="purpose">
+                <button type="button" class="cp-option-btn" data-value="已知Volare">已知Volare</button>
+                <button type="button" class="cp-option-btn" data-value="Walk in">Walk in</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>年齡區間</label>
+            <div class="cp-option-group" data-question="ageRange">
+                <button type="button" class="cp-option-btn" data-value="20以下">20以下</button>
+                <button type="button" class="cp-option-btn" data-value="21-35">21-35</button>
+                <button type="button" class="cp-option-btn" data-value="36-50">36-50</button>
+                <button type="button" class="cp-option-btn" data-value="51以上">51以上</button>
+            </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="submitCustomerProfile()" style="background:var(--success-color);">確認送出</button>
+            <button onclick="skipCustomerProfile()" style="background:#95a5a6;">略過</button>
         </div>
     </div>
 </div>
@@ -597,6 +658,7 @@
             </div>
             <div class="card">
                 <h2>📝 數據輸入主控台</h2>
+                <div id="dateLockHint" style="display:none; background:#fee2e2; color:#b91c1c; font-size:12px; padding:8px 12px; border-radius:4px; margin-bottom:12px;">🔒 此日期為歷史資料，僅限授權人員可新增/修改紀錄。</div>
                 <div class="tabs">
                     <div class="tab active" id="tabTicket" onclick="switchForm('Ticket')">票券登記</div>
                     <div class="tab" id="tabGoods" onclick="switchForm('Goods')">周邊登記</div>
@@ -873,7 +935,7 @@ function executeActualLoginLogic() {
     let u = document.getElementById('gateUser').value.trim(); let p = document.getElementById('gatePass').value; let errDiv = document.getElementById('loginErrorMsg');
     if (initialLoginDatabase[u] && initialLoginDatabase[u] === p) {
         errDiv.style.display = 'none'; document.getElementById('loginGatekeeperOverlay').style.display = 'none';
-        currentOperatorName = u; initStaticDropdowns(); switchForm('Ticket'); loadDateData(); pullFromCloud(true); 
+        currentOperatorName = u; initStaticDropdowns(); switchForm('Ticket'); loadDateData(); updateInputLockUI(); pullFromCloud(true); 
         showMsg('【提醒】', `🔓 歡迎登入！\n解鎖帳號：${u}`);
     } else { toggleLoginButtonState(false, "登入解鎖系統"); errDiv.innerText = "❌ 登入帳號或密碼不正確，請重新輸入！"; errDiv.style.display = 'block'; }
 }
@@ -938,7 +1000,8 @@ function pushToCloud() {
         goodsDatabase: JSON.parse(JSON.stringify(goodsDatabase)),
         vendorDatabase: JSON.parse(JSON.stringify(vendorDatabase)),
         staffDatabase: JSON.parse(JSON.stringify(staffDatabase)),
-        historyEditAuthorizedStaff: JSON.parse(JSON.stringify(historyEditAuthorizedStaff))
+        historyEditAuthorizedStaff: JSON.parse(JSON.stringify(historyEditAuthorizedStaff)),
+        currentPriceMode: currentPriceMode
     };
 
     fetch(CLOUD_DB_URL).then(res => res.json()).then(resData => {
@@ -964,12 +1027,13 @@ function restoreLocalSnapshotValues(snapshot) {
     for (let key in snapshot.vendorDatabase) { vendorDatabase[key] = snapshot.vendorDatabase[key]; }
     for (let key in snapshot.staffDatabase) { staffDatabase[key] = snapshot.staffDatabase[key]; }
     for (let key in snapshot.historyEditAuthorizedStaff) { historyEditAuthorizedStaff[key] = snapshot.historyEditAuthorizedStaff[key]; }
+    if (snapshot.currentPriceMode) { currentPriceMode = snapshot.currentPriceMode; renderPriceModeButtons(); }
 }
 
 function sendPushPayload(activeDate, syncTimeout) {
     let salesForThisDay = {};
     if (systemStorage[activeDate]) salesForThisDay[activeDate] = systemStorage[activeDate];
-    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff } } };
+    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff, currentPriceMode: currentPriceMode } } };
     fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json()).then(resData => { clearTimeout(syncTimeout); isSyncing = false; if(resData && resData.status === "success") setSyncIndicator('success'); else setSyncIndicator('fail'); })
     .catch(err => { clearTimeout(syncTimeout); isSyncing = false; setSyncIndicator('fail'); });
@@ -1035,6 +1099,14 @@ function unpackCloudConfig(cfg) {
     if (cfg.historyEditAuthorizedStaff && Object.keys(cfg.historyEditAuthorizedStaff).length > 0) historyEditAuthorizedStaff = Object.assign({}, historyEditAuthorizedStaff, cfg.historyEditAuthorizedStaff);
     historyEditAuthorizedStaff["amy_chung@brogentglobal.com"] = true; // 最高管理者永遠保有此權限，不受任何合併結果影響
 
+    // 🎯 全店共用平假日票價模式：以雲端設定為準，確保任何裝置登入後立即顯示同一個狀態，不需各自切換
+    if (cfg.currentPriceMode && cfg.currentPriceMode !== currentPriceMode) {
+        currentPriceMode = cfg.currentPriceMode;
+        localStorage.setItem('volare_price_mode', currentPriceMode);
+        renderPriceModeButtons();
+        syncTicketPrice();
+    }
+
     // 🎯 合併完成後，把所有已標記刪除的 key 從各資料庫中徹底移除，不管是哪台裝置寫回來的舊資料都會被排除
     applyDeletionTombstones(ticketTypeDatabase, deletedTicketKeys);
     applyDeletionTombstones(goodsDatabase, deletedGoodsKeys);
@@ -1070,7 +1142,20 @@ function markAsDeleted(tombstones, key) {
 
 
 // 🎯 切換日期時，主動向雲端拉取該天最新資料，確保跨裝置看到的是最新狀態（先前版本只重畫本機資料，是造成同步落差的原因之一）
-function onMasterDateChange() { pullFromCloud(true); }
+function onMasterDateChange() { updateInputLockUI(); pullFromCloud(true); }
+
+// 🎯 依目前選取日期與操作者權限，控制左側輸入面板的確認鍵是否可點擊。
+// 過去日期且操作者未被授權歷史編輯時，反灰票券/周邊兩個確認鍵，避免一般同仁誤新增歷史資料。
+function updateInputLockUI() {
+    let activeDate = getActiveDate();
+    let allowed = canEditDate(activeDate);
+    let ticketBtn = document.getElementById('btnSubmitTicket');
+    let goodsBtn = document.getElementById('btnSubmitGoods');
+    let lockHint = document.getElementById('dateLockHint');
+    if (ticketBtn) { ticketBtn.disabled = !allowed; ticketBtn.style.opacity = allowed ? '1' : '0.4'; ticketBtn.style.cursor = allowed ? 'pointer' : 'not-allowed'; }
+    if (goodsBtn) { goodsBtn.disabled = !allowed; goodsBtn.style.opacity = allowed ? '1' : '0.4'; goodsBtn.style.cursor = allowed ? 'pointer' : 'not-allowed'; }
+    if (lockHint) lockHint.style.display = allowed ? 'none' : 'block';
+}
 function triggerRangeQuery() {
     let s = document.getElementById('expStart').value; let e = document.getElementById('expEnd').value;
     if(!s || !e || s > e) { showMsg('【提醒】', '請選取正確的日期查詢區間！'); return; }
@@ -1160,6 +1245,8 @@ function setPriceMode(mode) {
     localStorage.setItem('volare_price_mode', mode);
     renderPriceModeButtons();
     syncTicketPrice();
+    pushLog(`切換票價模式為：${mode === 'holiday' ? '假日' : '平日'}`);
+    saveAndRender(); // 🎯 立即推送到雲端，確保任何裝置登入後都看到同一個全店共用的平假日狀態，不需各自切換
 }
 
 function renderPriceModeButtons() {
@@ -1228,6 +1315,7 @@ function addTicketSale() {
     let price = parseInt(document.getElementById('ticketPrice').value); let mid = document.getElementById('ticketMemberId').value; 
     
     if (!date) { showMsg('【提醒】', '請先選取營運日期！'); return; }
+    if (!canEditDate(date)) { showMsg('【提醒】', "🔒 此日期為歷史資料，僅限授權人員新增紀錄！"); return; }
     if (!qty || qty < 1) { showMsg('【提醒】', '請輸入正確的張數！'); return; }
     if (type.includes("極速賽車")) { program = "隨到隨開場：極速賽車項目"; time = "--"; }
 
@@ -1238,24 +1326,49 @@ function addTicketSale() {
         }
         if (existingFilmsInSession.length > 0 && !existingFilmsInSession.includes(program)) {
             let collisionHtml = `${time} 時間已為 ${existingFilmsInSession[0]}，<br>是否繼續操作？`;
-            showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) { if (approved) { if ((currentSessionPeopleTotal + incomingPeople) > 8) triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople), mid); else executeTicketCommit(date, program, time, type, qty, price, mid); } }); return; 
+            showMsg('【排片撞片提醒】', collisionHtml, true, function(approved) { if (approved) { if ((currentSessionPeopleTotal + incomingPeople) > 8) triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople), mid); else openCustomerProfileModal(date, program, time, type, qty, price, mid); } }); return; 
         }
         if ((currentSessionPeopleTotal + incomingPeople) > 8) { triggerOverloadWarning(date, program, time, type, qty, price, (currentSessionPeopleTotal + incomingPeople), mid); return; }
     }
-    executeTicketCommit(date, program, time, type, qty, price, mid);
+    openCustomerProfileModal(date, program, time, type, qty, price, mid);
 }
 
 function triggerOverloadWarning(date, program, time, type, qty, price, calculatedTotal, mid) {
     let warningHtml = `此筆資料新增後，${time} 場次人數將<span class="highlight-alert-text">【累計達 ${calculatedTotal} 位】</span>，請確認是否繼續？`;
-    showMsg('【座位超載警告】', warningHtml, true, function(approved) { if (approved) executeTicketCommit(date, program, time, type, qty, price, mid); });
+    showMsg('【座位超載警告】', warningHtml, true, function(approved) { if (approved) openCustomerProfileModal(date, program, time, type, qty, price, mid); });
 }
 
-function executeTicketCommit(date, program, time, type, qty, price, mid) {
+// 🎯 顧客樣態紀錄彈窗：票券確認後、正式寫入紀錄前彈出，收集三題單選資料一併存入這筆紀錄
+let pendingTicketCommit = null;
+let customerProfileSelections = { composition: null, purpose: null, ageRange: null };
+
+function openCustomerProfileModal(date, program, time, type, qty, price, mid) {
+    pendingTicketCommit = { date, program, time, type, qty, price, mid };
+    customerProfileSelections = { composition: null, purpose: null, ageRange: null };
+    document.querySelectorAll('#customerProfileModal .cp-option-btn').forEach(btn => btn.classList.remove('selected'));
+    document.getElementById('customerProfileModal').style.display = 'block';
+}
+
+function submitCustomerProfile() {
+    if (!pendingTicketCommit) return;
+    executeTicketCommit(pendingTicketCommit.date, pendingTicketCommit.program, pendingTicketCommit.time, pendingTicketCommit.type, pendingTicketCommit.qty, pendingTicketCommit.price, pendingTicketCommit.mid, { ...customerProfileSelections });
+    closeModal('customerProfileModal');
+    pendingTicketCommit = null;
+}
+
+function skipCustomerProfile() {
+    if (!pendingTicketCommit) return;
+    executeTicketCommit(pendingTicketCommit.date, pendingTicketCommit.program, pendingTicketCommit.time, pendingTicketCommit.type, pendingTicketCommit.qty, pendingTicketCommit.price, pendingTicketCommit.mid, null);
+    closeModal('customerProfileModal');
+    pendingTicketCommit = null;
+}
+
+function executeTicketCommit(date, program, time, type, qty, price, mid, customerProfile) {
     initDateKey(date); let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
     // 🎯 寫入當下就固定保存人次計算結果，避免日後修改票種 seats 設定回頭影響歷史報表（與 amount 同樣的保護原則）
     let peopleAtEntry = calculateTicketPeople(type, qty);
     let experienceAtEntry = calculateRealExperienceCount(type, qty);
-    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null, lastModified: Date.now(), people: peopleAtEntry, experienceCount: experienceAtEntry });
+    systemStorage[date].tickets.push({ id: 'T_' + Date.now(), timestamp: clockStr, program: program, time: time, type: type, qty: qty, price: price, amount: qty * price, memberId: mid, audit: null, lastModified: Date.now(), people: peopleAtEntry, experienceCount: experienceAtEntry, customerProfile: customerProfile || null });
     document.getElementById('ticketMemberId').value = "--"; saveAndRender();
 }
 
@@ -1263,7 +1376,9 @@ function addGoodsSale() {
     let date = getActiveDate(); let barcode = document.getElementById('goodsType').value;
     let qty = parseInt(document.getElementById('goodsQty').value); let discount = parseFloat(document.getElementById('goodsDiscount').value);
     let parsedDiscount = parseFloat(discount.toFixed(2)); let mid = document.getElementById('goodsMemberId').value; 
-    if(!date) { showMsg('【提醒】', '請先選擇營運日期！'); return; } if(!barcode) { showMsg('【提醒】', '請先選擇周邊商品！'); return; }
+    if(!date) { showMsg('【提醒】', '請先選擇營運日期！'); return; }
+    if (!canEditDate(date)) { showMsg('【提醒】', "🔒 此日期為歷史資料，僅限授權人員新增紀錄！"); return; }
+    if(!barcode) { showMsg('【提醒】', '請先選擇周邊商品！'); return; }
     let reason = "", authUser = ""; if (parsedDiscount !== 1.0) { reason = document.getElementById('goodsDiscountReason').value.trim(); authUser = document.getElementById('goodsDiscountAuthUser').value.trim(); if(!reason || !authUser) { showMsg('【提醒】', '特殊折扣成因與填寫人姓名為必填項目！'); return; } }
     checkAndWarnSafetyStock(barcode, qty); initDateKey(date); let now = new Date(); let formatClock = now.toTimeString().split(' '), clockStr = formatClock[0]; 
     systemStorage[date].goods.push({ id: 'G_' + Date.now(), timestamp: clockStr, barcode: barcode, name: goodsDatabase[barcode].name, price: goodsDatabase[barcode].price, qty: qty, discount: parsedDiscount, discountReason: reason, discountAuthUser: authUser, memberId: mid, audit: null, lastModified: Date.now() });
@@ -1283,7 +1398,14 @@ document.getElementById('barcodeScanner').addEventListener('keypress', function(
             switchForm('Goods'); 
             document.getElementById('goodsType').value = barcode; 
             syncGoodsPrice();
-            document.getElementById('goodsQty').focus(); 
+            // 🎯 每次新掃碼都重置折扣與數量欄位，避免上一筆未送出的折扣設定殘留並誤套用到新掃的商品
+            document.getElementById('goodsQty').value = -1;
+            document.getElementById('goodsDiscount').value = "1.0";
+            document.getElementById('goodsDiscountReason').value = "";
+            document.getElementById('goodsDiscountAuthUser').value = "";
+            toggleDiscountAuthZone();
+            document.getElementById('goodsQty').focus();
+            document.getElementById('goodsQty').select();
         } else { showMsg('【提醒】', "此商品條碼尚未在後台建立項目！"); }
         this.value = ''; e.preventDefault();
     }
@@ -1676,6 +1798,9 @@ function exportRangeData() {
     let csvContent = "\uFEFF"; csvContent += `VOLARE 營運智慧整合區間報表,查詢區間:,${start} 至 ${end}\n\n=== 🎫 票券銷售累計明細 ===\n營業日期,輸入時間,影片節目,場次時間,票券種類,單價,銷售張數,營業總額,計算人次,會員編號/廠商代碼,內部審計簽核\n`;
     let allDates = Object.keys(systemStorage).sort();
     allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) { systemStorage[d].tickets.forEach(x => { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.price},${x.qty},${x.amount},${x.people !== undefined ? x.people : calculateTicketPeople(x.type, x.qty)},${x.memberId || '--'},${x.audit ? `填寫人:${x.audit.user} 原因:${x.audit.reason}` : '無異動'}\n`; }); } });
+    // 🎯 顧客樣態紀錄獨立成表，欄位拆開方便 Excel 篩選與樞紐分析（只列出有填寫過問卷的票券，略過的不會出現在此表）
+    csvContent += "\n=== 📋 顧客樣態紀錄明細 ===\n營業日期,輸入時間,影片節目,場次時間,票券種類,張數,顧客組成,體驗目的,年齡區間\n";
+    allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].tickets) { systemStorage[d].tickets.forEach(x => { if (x.customerProfile) { csvContent += `${d},${x.timestamp || '--'},${x.program},${x.time},${x.type},${x.qty},${x.customerProfile.composition || ''},${x.customerProfile.purpose || ''},${x.customerProfile.ageRange || ''}\n`; } }); } });
     csvContent += "\n=== 🛍️ 周邊商品銷售流水變動明細 ===\n營業日期,輸入時間,國際條碼,商品品名,變動類型,固定單價,變動數量,使用折扣,實收總價,會員編號/廠商代碼,特殊折扣說明與填寫人,內部審計改單簽核\n";
     allDates.forEach(d => { if(d >= start && d <= end && systemStorage[d] && systemStorage[d].goods) { systemStorage[d].goods.forEach(g => { let subtotal = g.qty < 0 ? Math.round(g.price * Math.abs(g.qty) * g.discount) : 0; csvContent += `${d},${g.timestamp || '--'},${g.barcode},${g.name},${g.qty < 0 ? "售出" : "進貨"},${g.price},${g.qty},${g.discount},${subtotal},${g.memberId || '--'},${g.discount !== 1.0 ? `原因:${g.discountReason} 簽名:${g.discountAuthUser}` : '無折扣'},${g.audit ? `填寫人:${g.audit.user} 理由:${g.audit.reason}` : '無異動'}\n`; }); } });
     csvContent += "\n=== 📊 每日營業加總日報 ===\n營運日期,票務總收入,總售出人次,周邊總淨營收,當日總營業額\n";
@@ -1688,9 +1813,20 @@ function exportRangeData() {
     link.setAttribute("download", `VOLARE_整合營運總匯報表_${start}_至_${end}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
 }
 
+// 🎯 顧客樣態彈窗單選按鈕：點擊後該題目組內僅保留一個選中狀態
+document.addEventListener('click', function(e) {
+    if (!e.target.classList.contains('cp-option-btn')) return;
+    let group = e.target.closest('.cp-option-group');
+    let question = group.getAttribute('data-question');
+    group.querySelectorAll('.cp-option-btn').forEach(btn => btn.classList.remove('selected'));
+    e.target.classList.add('selected');
+    customerProfileSelections[question] = e.target.getAttribute('data-value');
+});
+
 document.addEventListener('keypress', function(e) {
     if (e.key !== 'Enter') return; if (e.target.tagName === 'TEXTAREA') return; 
-    if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') { preLoginSyncAndAttempt(); } else if (document.getElementById('globalMsgModal').style.display === 'block') { closeMsgModal(); } else if (document.getElementById('auditModal').style.display === 'block') { submitModalEdit(); } else if (document.getElementById('changeMyPasswordModal').style.display === 'block') { submitChangeMyPassword(); } else if (document.getElementById('backendModal').style.display === 'block') {
+    if (e.target.id === 'barcodeScanner') return; // 🎯 條碼掃描框已有專屬處理邏輯（先帶入表單、不自動送出），不可被此處的全域規則重複處理，否則會繞過人工確認折扣的步驟直接送出
+    if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') { preLoginSyncAndAttempt(); } else if (document.getElementById('globalMsgModal').style.display === 'block') { closeMsgModal(); } else if (document.getElementById('auditModal').style.display === 'block') { submitModalEdit(); } else if (document.getElementById('changeMyPasswordModal').style.display === 'block') { submitChangeMyPassword(); } else if (document.getElementById('customerProfileModal').style.display === 'block') { return; } else if (document.getElementById('backendModal').style.display === 'block') {
         if (document.getElementById('backendAuthZone').style.display !== 'none') { verifyBackendPassword(); } else if (currentBackendTab === 'Prog') submitNewProgram(); else if (currentBackendTab === 'Ticket') submitNewTicket(); else if (currentBackendTab === 'Goods') submitNewGoods(); else if (currentBackendTab === 'Vend') submitNewVendor(); else if (currentBackendTab === 'MasterUsers') submitMasterGateAccount(); else if (currentBackendTab === 'Users') submitNewStaffAccount();
     } else if (document.getElementById('formTicket').style.display !== 'none') { addTicketSale(); } else if (document.getElementById('formGoods').style.display !== 'none') { addGoodsSale(); }
 });
