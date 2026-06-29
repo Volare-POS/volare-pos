@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v71</title>
+    <title>VOLARE 智慧雲端安全營運系統 v72</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -377,14 +377,31 @@
         @media screen and (max-width: 850px) {
             body { padding: 10px; }
             header { flex-direction: column; align-items: stretch; padding: 15px; }
-            header div { width: 100%; text-align: center; }
-            header button { width: 100%; }
+            header > div { width: 100%; text-align: center; box-sizing: border-box; }
+            header > button { width: 100%; }
+            /* 🎯 header 內的控制列（同步更新/日期/票價切換）在窄螢幕改直排，避免擠壓造成日期欄位渲染異常 */
+            #headerControlGroup {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+            #headerControlGroup > button,
+            #headerControlGroup > input,
+            #headerControlGroup > div,
+            #headerControlGroup > label {
+                width: 100% !important;
+                text-align: center;
+            }
+            #currentDate {
+                box-sizing: border-box;
+                min-height: 38px;
+                font-size: 14px;
+            }
             .dashboard-grid { flex-direction: column; gap: 15px; }
             .left-panel { width: 100%; position: relative; top: 0; max-height: none; }
             .right-panel { width: 100%; }
             .summary-boxes { grid-template-columns: 1fr; gap: 10px; }
             .box .value { font-size: 20px; }
-            .modal-content { width: 95%; margin: 15% auto; padding: 15px; }
+            .modal-content { width: 95% !important; margin: 15% auto; padding: 15px; max-height: 80vh; }
             #rangeSearchZone { flex-direction: column; align-items: stretch; gap: 12px !important; }
             #rangeSearchZone div { flex-direction: column; align-items: stretch; width: 100%; }
             #rangeSearchZone input { width: 100% !important; }
@@ -621,7 +638,7 @@
                 <span id="syncText">雲端安全同步中...</span>
             </span>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 6px;">
+        <div id="headerControlGroup" style="display: flex; gap: 10px; align-items: center; background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 6px;">
             <button onclick="pullFromCloud(true)" style="background:var(--warning-color); width:95px; padding:6px; font-size:13px; font-weight:bold; border-radius:4px; white-space:nowrap; cursor:pointer;">🔄 同步更新</button>
             <label style="color:white; margin:0; font-size:14px; white-space:nowrap;">📅 日期：</label>
             <input type="date" id="currentDate" style="width: 145px; padding: 5px; border:none;" onchange="onMasterDateChange()">
