@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v73</title>
+    <title>VOLARE 智慧雲端安全營運系統 v74</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -1081,8 +1081,14 @@ function mergeSingleDay(dateKey, cloudDayData) {
     if (!systemStorage[dateKey]) { systemStorage[dateKey] = cloudDayData; return; }
     if (cloudDayData.clearedAt) { if (!systemStorage[dateKey].clearedAt || cloudDayData.clearedAt > systemStorage[dateKey].clearedAt) { systemStorage[dateKey].clearedAt = cloudDayData.clearedAt; systemStorage[dateKey].tickets = []; systemStorage[dateKey].goods = []; } }
     let localClearedAt = systemStorage[dateKey].clearedAt || 0;
-    if (cloudDayData.tickets) { let filteredCloudTickets = cloudDayData.tickets.filter(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[dateKey].tickets, filteredCloudTickets); }
-    if (cloudDayData.goods) { let filteredCloudGoods = cloudDayData.goods.filter(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[dateKey].goods, filteredCloudGoods); }
+    // 🎯 v74 修正：合併本機與雲端的單筆刪除墓碑清單，確保所有已刪除的 id 都不會被雲端資料重新塞回來
+    let localDeletedIds = systemStorage[dateKey].deletedRecordIds || [];
+    if (cloudDayData.deletedRecordIds) {
+        cloudDayData.deletedRecordIds.forEach(id => { if (!localDeletedIds.includes(id)) localDeletedIds.push(id); });
+        systemStorage[dateKey].deletedRecordIds = localDeletedIds;
+    }
+    if (cloudDayData.tickets) { let filteredCloudTickets = cloudDayData.tickets.filter(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt) && !localDeletedIds.includes(cTicket.id); }); mergeRecordList(systemStorage[dateKey].tickets, filteredCloudTickets); }
+    if (cloudDayData.goods) { let filteredCloudGoods = cloudDayData.goods.filter(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt) && !localDeletedIds.includes(cGood.id); }); mergeRecordList(systemStorage[dateKey].goods, filteredCloudGoods); }
 }
 
 function smartMergeSales(cloudSales) {
@@ -1091,8 +1097,14 @@ function smartMergeSales(cloudSales) {
         if (!systemStorage[date]) { systemStorage[date] = cloudSales[date]; } else {
             if (cloudSales[date].clearedAt) { if (!systemStorage[date].clearedAt || cloudSales[date].clearedAt > systemStorage[date].clearedAt) { systemStorage[date].clearedAt = cloudSales[date].clearedAt; systemStorage[date].tickets = []; systemStorage[date].goods = []; } }
             let localClearedAt = systemStorage[date].clearedAt || 0;
-            if (cloudSales[date].tickets) { let filteredCloudTickets = cloudSales[date].tickets.filter(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[date].tickets, filteredCloudTickets); }
-            if (cloudSales[date].goods) { let filteredCloudGoods = cloudSales[date].goods.filter(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt); }); mergeRecordList(systemStorage[date].goods, filteredCloudGoods); }
+            // 🎯 v74 修正：合併本機與雲端的單筆刪除墓碑清單，避免 smartMerge 把已刪紀錄從雲端補回來
+            let localDeletedIds = systemStorage[date].deletedRecordIds || [];
+            if (cloudSales[date].deletedRecordIds) {
+                cloudSales[date].deletedRecordIds.forEach(id => { if (!localDeletedIds.includes(id)) localDeletedIds.push(id); });
+                systemStorage[date].deletedRecordIds = localDeletedIds;
+            }
+            if (cloudSales[date].tickets) { let filteredCloudTickets = cloudSales[date].tickets.filter(cTicket => { let ts = parseInt(cTicket.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt) && !localDeletedIds.includes(cTicket.id); }); mergeRecordList(systemStorage[date].tickets, filteredCloudTickets); }
+            if (cloudSales[date].goods) { let filteredCloudGoods = cloudSales[date].goods.filter(cGood => { let ts = parseInt(cGood.id.split('_')[1]) || 0; return !(localClearedAt && ts < localClearedAt) && !localDeletedIds.includes(cGood.id); }); mergeRecordList(systemStorage[date].goods, filteredCloudGoods); }
         }
     }
 }
@@ -1805,6 +1817,11 @@ function deleteSingleRecord(type, id, itemDate) {
     let confirmHtml = `🚨 【永久刪除警告】<br>您確定要將這筆紀錄【完全刪除】嗎？此動作無法復原，且不會留下審計紀錄。<br><br><strong>${displayName}</strong><br>日期：${itemDate}`;
     showMsg('【刪除二次確認】', confirmHtml, true, function(approved) {
         if (approved) {
+            // 🎯 v74 修正：登記單筆刪除墓碑，防止 pushToCloud 合併雲端資料時把剛刪的紀錄復活
+            if (!systemStorage[itemDate].deletedRecordIds) systemStorage[itemDate].deletedRecordIds = [];
+            if (!systemStorage[itemDate].deletedRecordIds.includes(id)) {
+                systemStorage[itemDate].deletedRecordIds.push(id);
+            }
             if (type === 'Ticket') {
                 systemStorage[itemDate].tickets = systemStorage[itemDate].tickets.filter(t => t.id !== id);
             } else {
