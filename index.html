@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOLARE 智慧雲端安全營運系統 v81</title>
+    <title>VOLARE 智慧雲端安全營運系統 v82</title>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -245,6 +245,11 @@
             .stock-scroll .sc2 { left:0; min-width:150px; max-width:150px; width:150px; box-shadow: 2px 0 4px rgba(0,0,0,0.12); }
             .stock-scroll thead .sc1, .stock-scroll thead .sc3 { position:sticky; top:0; }
         }
+        .perm-chk { width:18px !important; height:18px; cursor:pointer; margin:0; }
+        .perm-matrix th, .perm-matrix td { font-size:12px; padding:8px 6px; text-align:center; }
+        .perm-matrix td:first-child, .perm-matrix th:first-child { text-align:left; min-width:120px; word-break:break-all; }
+        .perm-matrix th { line-height:1.3; }
+        .perm-sec { margin-top:14px; padding-top:14px; border-top:1px solid #fca5a5; }
         .discount-chip { display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #cbd5e0; border-radius:20px; padding:4px 6px 4px 12px; margin:4px 6px 4px 0; font-size:13px; }
         .discount-chip button { width:auto; padding:2px 8px; font-size:12px; border-radius:12px; }
         .stock-alert {
@@ -628,7 +633,7 @@
                 <div id="backendGoodsList" style="max-height:200px; overflow-y:auto; border-top:1px solid #ccc; padding-top:10px;"></div>
 
                 <div id="discountAdminZone" style="display:none; margin-top:20px; background:#fff7ed; border:2px dashed #f59e0b; border-radius:6px; padding:15px;">
-                    <h4 style="color:#b45309; margin:0 0 6px 0;">🏷️ 折扣比例維護（僅限獲授權帳號）</h4>
+                    <h4 style="color:#b45309; margin:0 0 6px 0;">🏷️ 周邊商品折扣修改（需具備「周邊商品折扣修改」權限）</h4>
                     <p style="font-size:12px; color:#92400e; margin:0 0 10px 0;">新增後，前台「周邊登記」與「✍️ 修改紀錄」的折扣選單會同步出現（全店各台電腦自動同步）。「無打折 (1.0)」固定保留、不可刪除。刪除某個折扣只會讓它不再出現在選單，已登記的歷史紀錄不受影響。</p>
                     <div class="form-row" style="align-items:flex-end;">
                         <div style="flex:2;"><label>新增折數（0.10 ～ 0.99，例如 0.7 代表七折、0.85 代表八五折）</label><input type="number" id="newDiscountValue" step="0.01" min="0.1" max="0.99" placeholder="例如 0.7"></div>
@@ -674,21 +679,42 @@
                 </div>
                 <h4 style="margin-top:20px;">目前已獲准連線之一對一操作員名冊</h4>
                 <div id="backendStaffList" style="max-height:180px; overflow-y:auto;"></div>
+
+                <h4 style="margin-top:24px; color:#2b6cb0;">🔐 帳號權限設定（勾選後立即生效並同步全店）</h4>
+                <p style="font-size:12px; color:#555; margin:0 0 8px 0;">針對每個後台帳號，勾選它可以使用的高風險功能。未勾選的功能，該帳號登入後台後<strong>看不到也無法操作</strong>。amy_chung 永遠擁有全部權限，不可修改。新建立的帳號預設沒有任何權限。</p>
+                <div class="table-responsive">
+                    <table class="perm-matrix" style="min-width:0; width:100%; table-layout:auto;">
+                        <thead><tr>
+                            <th>後台帳號</th>
+                            <th>重置清空<br>當日紀錄</th>
+                            <th>雲端資料<br>定期清理</th>
+                            <th>整天覆蓋<br>匯入</th>
+                            <th>歷史紀錄<br>編輯</th>
+                            <th>周邊商品<br>折扣修改</th>
+                        </tr></thead>
+                        <tbody id="permMatrixBody"></tbody>
+                    </table>
+                </div>
+                <div style="font-size:11px; color:#718096; margin-top:6px;">「歷史紀錄編輯」＝可以新增／修改「非當日」的票券與周邊紀錄（原本的「歷史紀錄編輯授權管理」已合併到這裡）。</div>
             </div>
 
             <div id="bZonePass" style="display:none;">
                 <div id="masterClearDataZone" style="display:none; background:#fee2e2; border: 2px dashed #f87171; padding:15px; border-radius:6px; margin-bottom:20px;">
-                    <h4 style="color:#b91c1c; margin:0 0 8px 0;">☣️ 最高管理者特區：重置清空日誌紀錄</h4>
-                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將當日所有的登記明細完全清空歸零。限最高主管 amy_chung@brogentglobal.com 操作。</p>
+                    <div style="font-size:12px; color:#7f1d1d; margin-bottom:6px;">⚠️ 以下為高風險操作，畫面上只會顯示您的帳號被授予權限的項目（由最高管理者在「👥 控制後台登入權限」中勾選設定）。</div>
+                    <div class="perm-sec" id="permSecClearDay">
+                    <h4 style="color:#b91c1c; margin:0 0 8px 0;">☣️ 重置清空當日交易紀錄</h4>
+                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">點擊後會將目前選擇日期當天所有的登記明細完全清空歸零。需具備「重置清空當日紀錄」權限。</p>
                     <button onclick="executeMasterClearDaySales()" class="btn-accent" style="padding:10px; width:auto; font-size:13px; margin-top:8px;">🚨 清除當日所有交易紀錄</button>
-                    <hr style="margin:16px 0; border-color:#fca5a5;">
+                    </div>
+                    <div class="perm-sec" id="permSecClearBefore">
                     <h4 style="color:#b91c1c; margin:0 0 8px 0;">🗑️ 雲端資料定期清理（依日期區間批次刪除）</h4>
                     <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">選擇一個日期，將自動刪除雲端中此日期【之前】的所有交易紀錄，用於每月例行清理資料量，不影響當期仍在使用的資料。</p>
                     <div class="form-row" style="align-items:center;">
                         <input type="date" id="clearBeforeDateInput" style="flex:1;">
                         <button onclick="executeClearBeforeDate()" class="btn-accent" style="flex:1; padding:10px; font-size:13px;">🗑️ 清除此日期之前的所有紀錄</button>
                     </div>
-                    <hr style="margin:16px 0; border-color:#fca5a5;">
+                    </div>
+                    <div class="perm-sec" id="permSecOverride">
                     <h4 style="color:#b91c1c; margin:0 0 8px 0;">🧾 整天覆蓋匯入（異常裝置資料復原專用）</h4>
                     <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">
                         用途：某台裝置網路異常、資料一直卡在本機無法同步時，先請該裝置用「🧾 匯出當日原始資料」把卡住的資料匯出，
@@ -701,14 +727,7 @@
                         <input type="file" id="overrideImportFileInput" accept="application/json" style="flex:2; background:#fff; border-radius:4px; padding:6px;">
                     </div>
                     <button onclick="executeDayOverrideImport()" class="btn-accent" style="padding:10px; width:auto; font-size:13px; margin-top:10px;">🚨 執行整天覆蓋匯入</button>
-                    <hr style="margin:16px 0; border-color:#fca5a5;">
-                    <h4 style="color:#b91c1c; margin:0 0 8px 0;">🔐 歷史紀錄編輯授權管理</h4>
-                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">僅授權清單內的帳號可以修改「非當日」的票券/商品歷史紀錄。當天與未來日期的紀錄修改不受此限制，所有後台帳號皆可操作。</p>
-                    <div class="form-row" style="align-items:center;">
-                        <select id="historyEditStaffSelect" style="flex:2;"></select>
-                        <button onclick="submitHistoryEditAuth()" style="flex:1; background:var(--success-color);">✅ 授權</button>
                     </div>
-                    <div id="historyEditAuthList" style="margin-top:10px; max-height:150px; overflow-y:auto;"></div>
                 </div>
                 <h3 style="margin:0 0 10px 0;">📜 後台歷史人員異動操作紀錄</h3>
                 <div class="log-box" id="adminLogContainer"></div>
@@ -721,7 +740,7 @@
 <div class="container">
     <header>
         <div style="display: flex; flex-direction: column; gap: 4px;">
-            <h1 style="margin:0; font-size: 22px;">VOLARE 智慧雲端安全營運系統</h1>
+            <h1 style="margin:0; font-size: 22px;">VOLARE 智慧雲端安全營運系統 <span id="appVersionTag" style="font-size:11px; font-weight:normal; color:#a0aec0; margin-left:4px; letter-spacing:0.5px;">v82</span></h1>
             <span id="liveUpdateTime" style="color:#cbd5e0; font-size:11px; display:flex; align-items:center;">
                 <span id="syncIndicator" class="status-dot status-syncing"></span>
                 <span id="syncText">雲端安全同步中...</span>
@@ -900,6 +919,8 @@
 </div>
 
 <script>
+const APP_VERSION = "v82"; // 🎯 版本號只需改這一行，分頁標題與畫面標題列的小字會一起更新
+document.title = `VOLARE 智慧雲端安全營運系統 ${APP_VERSION}`; document.getElementById('appVersionTag').innerText = APP_VERSION;
 const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbxQ6ftQdBt7kBiVNx9U-zRXiDG8i1FVn4gSnvYpdDD0GUjDAvh5892Sn43yJC3jMZBS/exec";
 
 let isSyncing = false; 
@@ -953,7 +974,17 @@ let historyEditAuthorizedStaff = JSON.parse(localStorage.getItem('volare_history
 
 // 🎯 v81 新增：折扣比例清單（後台可維護）。結構 { "折數字串": 新增時間戳記(ms) }，預設的五個折數時間為 0（最舊）。
 // 刪除用墓碑 deletedDiscountKeys 記錄 { "折數字串": 刪除時間 }，墓碑「晚於」新增時間才生效，因此刪掉後重新新增同一折數可正常復活。
-const DISCOUNT_ADMIN_ACCOUNTS = ["amy_chung@brogentglobal.com"]; // 🎯 有權新增/刪除折扣的帳號；日後要開放給指定同仁，只要把帳號加進這個清單
+// 🎯 v82：帳號權限矩陣。結構 { "帳號": { clearDay:bool, clearBefore:bool, overrideImport:bool, historyEdit:bool, discountAdmin:bool, _t:最後異動時間 } }
+// 同步時同一帳號以 _t 較新者為準（整列覆蓋），因此「收回權限」不會被舊裝置的資料復活。
+const SUPER_ADMIN = "amy_chung@brogentglobal.com";
+const PERMISSION_DEFS = [
+    { key: 'clearDay', label: '重置清空當日紀錄' },
+    { key: 'clearBefore', label: '雲端資料定期清理' },
+    { key: 'overrideImport', label: '整天覆蓋匯入' },
+    { key: 'historyEdit', label: '歷史紀錄編輯' },
+    { key: 'discountAdmin', label: '周邊商品折扣修改' }
+];
+let staffPermissions = JSON.parse(localStorage.getItem('volare_staff_permissions_v1')) || {};
 const DISCOUNT_MIN = 0.10, DISCOUNT_MAX = 0.99;
 let discountOptions = JSON.parse(localStorage.getItem('volare_discount_options_v1')) || { "0.95": 0, "0.9": 0, "0.85": 0, "0.8": 0, "0.5": 0 };
 let deletedDiscountKeys = JSON.parse(localStorage.getItem('volare_deleted_discounts')) || {};
@@ -1085,15 +1116,17 @@ function executeActualLoginLogic() {
 }
 
 function executeMasterClearDaySales() {
+    if (!hasPermission(currentOperatorName, 'clearDay')) { showMsg('【提醒】', "🔒 您的帳號沒有「重置清空當日紀錄」的權限！"); return; }
     let date = getActiveDate();
     let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將 <strong>${date}</strong> 當日所有的票券開場與周邊銷售紀錄【完全抹除清空】嗎？`;
     showMsg('【清除資料二次確認】', clearConfirmHtml, true, function(approved) {
-        if (approved) { initDateKey(date); systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; pushLog(`最高管理者執行清除：抹除 ${date} 營運明細`); saveAndRender(); showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！`); }
+        if (approved) { initDateKey(date); systemStorage[date] = { tickets: [], goods: [], clearedAt: Date.now() }; pushLog(`執行清除：抹除 ${date} 營運明細`); saveAndRender(); showMsg('【提醒】', `🧹 ${date} 營運明細已全數重置洗空！`); }
     });
 }
 
 // 🎯 雲端資料定期清理：刪除指定日期之前的所有交易紀錄列，用於控制資料量，不需每次找工程師改程式碼
 function executeClearBeforeDate() {
+    if (!hasPermission(currentOperatorName, 'clearBefore')) { showMsg('【提醒】', "🔒 您的帳號沒有「雲端資料定期清理」的權限！"); return; }
     let beforeDate = document.getElementById('clearBeforeDateInput').value;
     if (!beforeDate) { showMsg('【提醒】', "請先選擇一個日期！"); return; }
     let clearConfirmHtml = `🚨 【危險重置警告】<br>您確定要將雲端中 <strong>${beforeDate}</strong> 【之前】的所有交易紀錄完全刪除嗎？<br>此動作無法復原，建議先確認近期報表已匯出備份。`;
@@ -1107,7 +1140,7 @@ function executeClearBeforeDate() {
                     // 同步清掉本機端對應的舊資料，避免畫面顯示已被雲端刪除的紀錄
                     for (let d in systemStorage) { if (d < beforeDate) delete systemStorage[d]; }
                     localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
-                    pushLog(`最高管理者執行批次清理：刪除 ${beforeDate} 之前共 ${resData.deletedRows} 筆日期資料`);
+                    pushLog(`執行批次清理：刪除 ${beforeDate} 之前共 ${resData.deletedRows} 筆日期資料`);
                     setSyncIndicator('success'); loadDateData();
                     showMsg('【提醒】', `🗑️ 清理完成！共刪除 ${resData.deletedRows} 個日期的雲端紀錄。`);
                 } else {
@@ -1184,7 +1217,7 @@ function restoreLocalSnapshotValues(snapshot) {
 function sendPushPayload(activeDate, syncTimeout) {
     let salesForThisDay = {};
     if (systemStorage[activeDate]) salesForThisDay[activeDate] = systemStorage[activeDate];
-    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff, currentPriceMode: currentPriceMode, discountOptions: discountOptions, deletedDiscountKeys: deletedDiscountKeys } } };
+    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff, currentPriceMode: currentPriceMode, discountOptions: discountOptions, deletedDiscountKeys: deletedDiscountKeys, staffPermissions: staffPermissions } } };
     return fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json()).then(resData => {
         clearTimeout(syncTimeout); isSyncing = false;
@@ -1311,6 +1344,8 @@ function unpackCloudConfig(cfg) {
     if (cfg.deletedDiscountKeys) mergeDeletionTombstones(deletedDiscountKeys, cfg.deletedDiscountKeys);
     if (cfg.discountOptions) { for (let k in cfg.discountOptions) { discountOptions[k] = Math.max(discountOptions[k] || 0, cfg.discountOptions[k] || 0); } }
     applyDiscountTombstones();
+    // 🎯 v82：權限矩陣——同一帳號以 _t 較新的整列為準（本機剛改的 _t 最新，不會被雲端舊資料蓋掉；別台收回的權限也不會被本機舊資料復活）
+    if (cfg.staffPermissions) { for (let acc in cfg.staffPermissions) { let c = cfg.staffPermissions[acc]; let l = staffPermissions[acc]; if (!l || (c._t || 0) > (l._t || 0)) staffPermissions[acc] = c; } }
 
     if (cfg.staffDatabase && Object.keys(cfg.staffDatabase).length > 0) staffDatabase = Object.assign({}, staffDatabase, cfg.staffDatabase);
     if (cfg.ticketTypeDatabase && Object.keys(cfg.ticketTypeDatabase).length > 0) ticketTypeDatabase = Object.assign({}, ticketTypeDatabase, cfg.ticketTypeDatabase);
@@ -1340,8 +1375,10 @@ function unpackCloudConfig(cfg) {
     localStorage.setItem('volare_deleted_tickets', JSON.stringify(deletedTicketKeys)); localStorage.setItem('volare_deleted_goods', JSON.stringify(deletedGoodsKeys)); localStorage.setItem('volare_deleted_vendors', JSON.stringify(deletedVendorKeys)); localStorage.setItem('volare_deleted_staff', JSON.stringify(deletedStaffKeys));
     localStorage.setItem('volare_history_edit_staff', JSON.stringify(historyEditAuthorizedStaff));
     localStorage.setItem('volare_discount_options_v1', JSON.stringify(discountOptions)); localStorage.setItem('volare_deleted_discounts', JSON.stringify(deletedDiscountKeys));
+    persistPermissions();
     populateDiscountSelects();
     if (document.getElementById('discountAdminList') && document.getElementById('discountAdminZone').style.display !== 'none') renderDiscountAdmin();
+    if (document.getElementById('backendControlZone') && document.getElementById('backendControlZone').style.display === 'block') { renderPermMatrix(); applyPermissionVisibility(); }
 }
 
 // 合併兩份墓碑清單，同一個key取較新的刪除時間（代表那是更晚發生、更權威的操作紀錄）
@@ -1485,6 +1522,62 @@ function syncGoodsPrice() {
     if(goodsDatabase[barcode]) document.getElementById('goodsPriceShow').value = goodsDatabase[barcode].price;
 }
 // ===== 🎯 v81：折扣比例管理 =====
+
+// ===== 🎯 v82：帳號權限矩陣 =====
+function hasPermission(acc, key) {
+    if (acc === SUPER_ADMIN) return true;
+    let e = staffPermissions[acc];
+    if (e) return e[key] === true;
+    // 尚未在權限矩陣設定過的帳號：歷史紀錄編輯沿用舊版授權名單（升級相容，原本已授權的人不會突然失去權限）
+    if (key === 'historyEdit') return historyEditAuthorizedStaff[acc] === true;
+    return false;
+}
+function persistPermissions() { localStorage.setItem('volare_staff_permissions_v1', JSON.stringify(staffPermissions)); }
+function togglePermission(acc, key, checked) {
+    if (currentOperatorName !== SUPER_ADMIN) { showMsg('【提醒】', "🔒 只有最高管理者可以調整帳號權限！"); renderPermMatrix(); return; }
+    if (acc === SUPER_ADMIN) { renderPermMatrix(); return; }
+    let e = staffPermissions[acc];
+    if (!e) { // 第一次設定這個帳號：先把目前實際有的權限（含舊版歷史編輯授權）整列固定下來，再套用這次勾選
+        e = {}; PERMISSION_DEFS.forEach(d => { e[d.key] = hasPermission(acc, d.key); });
+    }
+    e[key] = !!checked; e._t = Date.now(); staffPermissions[acc] = e;
+    persistPermissions();
+    let label = PERMISSION_DEFS.find(d => d.key === key).label;
+    pushLog(`${checked ? '授予' : '收回'}帳號 ${acc} 的權限：${label}`);
+    saveAndRender(); renderPermMatrix();
+}
+function renderPermMatrix() {
+    let body = document.getElementById('permMatrixBody'); if (!body) return;
+    let html = '';
+    let accounts = Object.keys(staffDatabase);
+    if (!accounts.includes(SUPER_ADMIN)) accounts.unshift(SUPER_ADMIN);
+    accounts.sort((a, b) => (a === SUPER_ADMIN ? -1 : b === SUPER_ADMIN ? 1 : 0));
+    accounts.forEach(acc => {
+        let isSuper = acc === SUPER_ADMIN;
+        html += `<tr><td><strong>${escHtml(acc)}</strong>${isSuper ? '<br><span style="color:#999;">(最高管理者，全部權限固定)</span>' : ''}</td>`;
+        PERMISSION_DEFS.forEach(d => {
+            let on = hasPermission(acc, d.key);
+            html += `<td><input type="checkbox" class="perm-chk" ${on ? 'checked' : ''} ${isSuper ? 'disabled' : ''} onchange="togglePermission(this.getAttribute('data-acc'), '${d.key}', this.checked)" data-acc="${escHtml(acc)}"></td>`;
+        });
+        html += `</tr>`;
+    });
+    body.innerHTML = html;
+}
+// 依目前登入帳號的權限，決定「系統安全專區」與「折扣維護」要顯示哪些區塊
+function applyPermissionVisibility() {
+    let secs = [['permSecClearDay', 'clearDay'], ['permSecClearBefore', 'clearBefore'], ['permSecOverride', 'overrideImport']];
+    let first = true, anyVisible = false;
+    secs.forEach(([id, key]) => {
+        let el = document.getElementById(id); if (!el) return;
+        let ok = hasPermission(currentOperatorName, key);
+        el.style.display = ok ? 'block' : 'none';
+        if (ok) { el.style.borderTop = first ? 'none' : '1px solid #fca5a5'; el.style.marginTop = first ? '0' : '14px'; el.style.paddingTop = first ? '0' : '14px'; first = false; anyVisible = true; }
+    });
+    document.getElementById('masterClearDataZone').style.display = anyVisible ? 'block' : 'none';
+    renderDiscountAdmin();
+}
+
+function persistDiscounts() { localStorage.setItem('volare_discount_options_v1', JSON.stringify(discountOptions)); localStorage.setItem('volare_deleted_discounts', JSON.stringify(deletedDiscountKeys)); }
 function normalizeDiscountKey(v) { return String(parseFloat(parseFloat(v).toFixed(2))); }
 // 墓碑時間「晚於」新增時間才算刪除，重新新增同一折數（時間更新）即可復活
 function applyDiscountTombstones() {
@@ -1506,7 +1599,7 @@ function populateDiscountSelects() {
     sel.value = Array.from(sel.options).some(o => o.value === current) ? current : "1.0";
     toggleDiscountAuthZone();
 }
-function canManageDiscounts() { return DISCOUNT_ADMIN_ACCOUNTS.includes(currentOperatorName); }
+function canManageDiscounts() { return hasPermission(currentOperatorName, 'discountAdmin'); }
 function renderDiscountAdmin() {
     let zone = document.getElementById('discountAdminZone'); if (!zone) return;
     zone.style.display = canManageDiscounts() ? 'block' : 'none';
@@ -1523,7 +1616,7 @@ function submitNewDiscount() {
     if (v < DISCOUNT_MIN || v > DISCOUNT_MAX) { showMsg('【提醒】', `折數必須介於 ${DISCOUNT_MIN.toFixed(2)} ～ ${DISCOUNT_MAX.toFixed(2)} 之間！<br>例如 0.7 代表七折、0.85 代表八五折。（原價請選「無打折」，不需新增）`); return; }
     let key = normalizeDiscountKey(v);
     if (discountOptions[key] !== undefined && !(deletedDiscountKeys[key] > discountOptions[key])) { showMsg('【提醒】', `【${discountLabel(v)}】已經在選單中了！`); return; }
-    discountOptions[key] = Date.now();
+    discountOptions[key] = Date.now(); persistDiscounts();
     pushLog(`新增折扣比例：${discountLabel(v)}`);
     document.getElementById('newDiscountValue').value = '';
     renderDiscountAdmin(); populateDiscountSelects(); saveAndRender();
@@ -1534,7 +1627,7 @@ function deleteDiscount(key) {
     let label = discountLabel(parseFloat(key));
     showMsg('【折扣刪除確認】', `確定要把折扣【${label}】從選單移除嗎？<br>已登記過的歷史紀錄不受影響。`, true, function(approved) {
         if (!approved) return;
-        delete discountOptions[key]; markAsDeleted(deletedDiscountKeys, key);
+        delete discountOptions[key]; markAsDeleted(deletedDiscountKeys, key); persistDiscounts();
         pushLog(`刪除折扣比例：${label}`);
         renderDiscountAdmin(); populateDiscountSelects(); saveAndRender();
     });
@@ -1553,41 +1646,8 @@ function renderLogBox() {
 }
 
 // 🎯 歷史紀錄編輯授權清單渲染與操作（僅 amy_chung 可見此區塊）
-function renderHistoryEditAuthList() {
-    let selectEl = document.getElementById('historyEditStaffSelect');
-    if (!selectEl) return;
-    selectEl.innerHTML = '';
-    for (let acc in staffDatabase) {
-        if (!historyEditAuthorizedStaff[acc]) { selectEl.innerHTML += `<option value="${acc}">${acc}</option>`; }
-    }
-    if (selectEl.innerHTML === '') selectEl.innerHTML = '<option value="">（所有後台帳號皆已授權）</option>';
 
-    let listEl = document.getElementById('historyEditAuthList');
-    if (!listEl) return;
-    listEl.innerHTML = '';
-    for (let acc in historyEditAuthorizedStaff) {
-        if (!historyEditAuthorizedStaff[acc]) continue;
-        let isProtected = acc === 'amy_chung@brogentglobal.com';
-        let removeBtn = isProtected ? `<span style="color:#999; font-size:12px;">(最高管理者，永不移除)</span>` : `<button class="btn-sm btn-accent" onclick="removeHistoryEditAuth('${acc}')">🗑️ 取消授權</button>`;
-        listEl.innerHTML += `<div class="backend-list-item"><span>✅ ${acc}</span>${removeBtn}</div>`;
-    }
-}
 
-function submitHistoryEditAuth() {
-    let acc = document.getElementById('historyEditStaffSelect').value;
-    if (!acc) { showMsg('【提醒】', "目前沒有可授權的帳號！"); return; }
-    historyEditAuthorizedStaff[acc] = true;
-    pushLog(`授權 ${acc} 可編輯歷史紀錄`);
-    renderHistoryEditAuthList(); saveAndRender();
-    showMsg('【提醒】', `🔐 已授權【${acc}】編輯歷史紀錄！`);
-}
-
-function removeHistoryEditAuth(acc) {
-    if (acc === 'amy_chung@brogentglobal.com') return showMsg('【提醒】', "最高管理者權限不可移除！");
-    showMsg('【取消授權確認】', `確定要取消【${acc}】編輯歷史紀錄的權限嗎？`, true, function(approved) {
-        if (approved) { delete historyEditAuthorizedStaff[acc]; pushLog(`取消了 ${acc} 編輯歷史紀錄的權限`); renderHistoryEditAuthList(); saveAndRender(); }
-    });
-}
 
 function addTicketSale() {
     let date = getActiveDate(); let program = document.getElementById('ticketProgram').value;
@@ -1710,11 +1770,11 @@ function verifyBackendPassword() {
 function unlockBackendControl() {
     document.getElementById('backendAuthZone').style.display = 'none'; document.getElementById('backendControlZone').style.display = 'block';
     // 僅最高權限 amy_chung 才能看到帳號管理相關分頁，一般同仁完全看不到
-    if(currentOperatorName === 'amy_chung@brogentglobal.com') { document.getElementById('masterClearDataZone').style.display = 'block'; document.getElementById('bTabMasterUsers').style.display = 'inline-block'; document.getElementById('bTabUsers').style.display = 'inline-block'; } 
-    else { document.getElementById('masterClearDataZone').style.display = 'none'; document.getElementById('bTabMasterUsers').style.display = 'none'; document.getElementById('bTabUsers').style.display = 'none'; }
+    if(currentOperatorName === SUPER_ADMIN) { document.getElementById('bTabMasterUsers').style.display = 'inline-block'; document.getElementById('bTabUsers').style.display = 'inline-block'; }
+    else { document.getElementById('bTabMasterUsers').style.display = 'none'; document.getElementById('bTabUsers').style.display = 'none'; }
     document.getElementById('currentUserBar').innerText = `👤 目前管理操作員：${currentOperatorName} (${currentOperatorName === 'amy_chung@brogentglobal.com' ? '最高權限主管' : '一般一線使用者'})`;
     switchBackendTab('Prog');
-    renderBackendLists(); renderLogBox(); renderStaffList(); renderHistoryEditAuthList(); renderDiscountAdmin();
+    renderBackendLists(); renderLogBox(); renderStaffList(); renderPermMatrix(); applyPermissionVisibility(); updateInputLockUI();
 }
 
 function switchBackendTab(tab) {
@@ -1744,7 +1804,7 @@ function switchBackendTab(tab) {
 
 function submitNewStaffAccount() {
     let acc = document.getElementById('newStaffAccount').value.trim(); let pas = document.getElementById('newStaffPassword').value.trim();
-    if(acc && pas) { staffDatabase[acc] = pas; delete deletedStaffKeys[acc]; pushLog(`建立了新同仁獨立帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList(); saveAndRender(); showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功獨立配對授權！`); } else { showMsg('【提醒】', "員工帳號與密碼皆為必填欄位！"); }
+    if(acc && pas) { staffDatabase[acc] = pas; delete deletedStaffKeys[acc]; pushLog(`建立了新同仁獨立帳號: ${acc}`); document.getElementById('newStaffAccount').value = ''; document.getElementById('newStaffPassword').value = ''; renderStaffList(); renderPermMatrix(); saveAndRender(); showMsg('【提醒】', `👥 同仁帳號【${acc}】已成功獨立配對授權！`); } else { showMsg('【提醒】', "員工帳號與密碼皆為必填欄位！"); }
 }
 
 function submitMasterGateAccount() {
@@ -1769,7 +1829,7 @@ function deleteVendor(vId) {
 
 function deleteStaffAccountByAcc(acc) {
     if(acc === "amy_chung@brogentglobal.com") return showMsg('【提醒】', "最高管理者一對一配對安全鎖不允許註銷！");
-    showMsg('【安全註銷確認】', `確定要註銷同仁【${acc}】的後台權限嗎？`, true, function(approved) { if(approved) { delete staffDatabase[acc]; markAsDeleted(deletedStaffKeys, acc); pushLog(`註銷了同仁後台權限: ${acc}`); renderStaffList(); saveAndRender(); } });
+    showMsg('【安全註銷確認】', `確定要註銷同仁【${acc}】的後台權限嗎？`, true, function(approved) { if(approved) { delete staffDatabase[acc]; markAsDeleted(deletedStaffKeys, acc); staffPermissions[acc] = { _t: Date.now() }; persistPermissions(); /* 🎯 v82：註銷帳號同時清空權限，日後同名帳號重建不會自動繼承 */ pushLog(`註銷了同仁後台權限: ${acc}`); renderStaffList(); renderPermMatrix(); saveAndRender(); } });
 }
 
 function renderStaffList() {
@@ -2236,7 +2296,7 @@ function submitModalEdit() {
 // 🎯 判斷目前操作者是否能編輯指定日期的紀錄：當天/未來日期一律開放，過去日期僅限歷史編輯授權清單內的帳號
 function canEditDate(dateStr) {
     if (dateStr >= todayStr) return true; // 當天或未來日期，任何登入後台的人都能操作
-    return historyEditAuthorizedStaff[currentOperatorName] === true;
+    return hasPermission(currentOperatorName, 'historyEdit'); // 🎯 v82：改讀帳號權限矩陣
 }
 
 // 🎯 v75 新增：匯出「單日完整原始資料」JSON（含每一筆的 id / timestamp / lastModified / 審計紀錄等所有欄位），
@@ -2270,7 +2330,7 @@ function exportRawDayData() {
 // 把雲端該日期資料整批標記作廢（沿用「清除當日資料」的 clearedAt 機制）後，改成匯入的這份資料，
 // 讓卡在其他裝置本機的舊資料之後連線時會自動放棄、改抓這份正確版本，徹底避免重複合併的問題。
 function executeDayOverrideImport() {
-    if (currentOperatorName !== 'amy_chung@brogentglobal.com') { showMsg('【提醒】', "🔒 此功能僅限最高權限主管操作！"); return; }
+    if (!hasPermission(currentOperatorName, 'overrideImport')) { showMsg('【提醒】', "🔒 您的帳號沒有「整天覆蓋匯入」的權限！"); return; }
     let date = document.getElementById('overrideImportDateInput').value;
     let fileInput = document.getElementById('overrideImportFileInput');
     if (!date) { showMsg('【提醒】', "請先選擇要覆蓋的日期！"); return; }
@@ -2299,7 +2359,7 @@ function executeDayOverrideImport() {
                 clearedAt: Date.now(),
                 deletedRecordIds: []
             };
-            pushLog(`最高管理者執行整天覆蓋匯入：${date}（票券${ticketCount}筆／周邊${goodsCount}筆，來源匯出者：${parsed.exportedBy || '未知'}）`);
+            pushLog(`執行整天覆蓋匯入：${date}（票券${ticketCount}筆／周邊${goodsCount}筆，來源匯出者：${parsed.exportedBy || '未知'}）`);
             localStorage.setItem('volare_pos_data_v13', JSON.stringify(systemStorage));
             loadDateData();
             pushToCloud(date).then(success => {
