@@ -232,6 +232,10 @@
         .stock-scroll .sc2 { position:sticky; left:110px; z-index:2; background:#fff; min-width:200px; max-width:200px; width:200px; white-space:normal; }
         .stock-scroll .sc3 { position:sticky; left:310px; z-index:2; background:#fff; min-width:80px; max-width:80px; width:80px; box-shadow: 2px 0 4px rgba(0,0,0,0.12); }
         .stock-scroll thead .sc1, .stock-scroll thead .sc2, .stock-scroll thead .sc3 { z-index:5; background:#f2f2f2; }
+        .stock-scroll .sc0 { position:sticky; left:0; z-index:2; background:#fffbea; min-width:150px; max-width:150px; width:150px; text-align:center; }
+        .stock-scroll thead .sc0 { z-index:5; background:#f2f2f2; }
+        .stock-scroll.reorder .sc1 { left:150px; } .stock-scroll.reorder .sc2 { left:260px; } .stock-scroll.reorder .sc3 { left:460px; }
+        .reorder-btn { width:auto; padding:2px 6px; font-size:12px; margin:0 1px; border-radius:4px; background:#3498db; }
         .stock-scroll td.num, .stock-scroll td.daycell { text-align:center; }
         .stock-scroll td.daycell { min-width:62px; line-height:1.35; }
         .stock-scroll .dsold { color:#d32f2f; font-weight:bold; }
@@ -495,6 +499,16 @@
     </div>
 </div>
 
+<div id="priceDayModal" class="modal" style="z-index:20000;">
+    <div class="modal-content" style="text-align:center; max-width:440px;">
+        <div class="modal-header" style="border:none; padding:0; margin-bottom:10px; font-size:18px; color:var(--accent-color);">💰 今日票價確認</div>
+        <div id="priceDayBody" style="font-size:16px; margin:15px 0; line-height:1.8;"></div>
+        <div class="modal-footer" style="justify-content:center; margin-top:20px; display:flex; gap:10px;">
+            <button id="priceDayBtn" onclick="confirmDailyPriceMode()" style="background:var(--success-color); width:auto; padding:10px 28px;">確認並繼續</button>
+        </div>
+    </div>
+</div>
+
 <div id="auditModal" class="modal">
     <div class="modal-content">
         <div class="modal-header" style="color: var(--accent-color);">【修改說明】</div>
@@ -610,6 +624,18 @@
                     <button onclick="submitNewTicket()" style="background:var(--success-color);">建立或覆蓋票種基本檔</button>
                 </div>
                 <div id="backendTicketList" style="max-height:200px; overflow-y:auto;"></div>
+
+                <div id="holidayAdminZone" style="display:none; margin-top:20px; background:#fef2f2; border:2px dashed #ef4444; border-radius:6px; padding:15px;">
+                    <h4 style="color:#b91c1c; margin:0 0 6px 0;">📅 假日日期維護（需具備「假日日期維護」權限）</h4>
+                    <p style="font-size:12px; color:#7f1d1d; margin:0 0 10px 0;">每天第一次有人登入時，系統會依這裡的設定判斷今天是平日或假日票價並跳窗請人確認。<strong>週六、週日預設自動視為假日</strong>；這裡用來加入國定假日／連假，或把「週末補班日」設為平日。可一次設定連續多天（填起訖日期）。</p>
+                    <div class="form-row" style="align-items:flex-end;">
+                        <div style="flex:1;"><label>起始日期</label><input type="date" id="holidayStart"></div>
+                        <div style="flex:1;"><label>結束日期（單日可不填）</label><input type="date" id="holidayEnd"></div>
+                        <div style="flex:1;"><label>類型</label><select id="holidayType"><option value="H">假日（假日票價）</option><option value="W">平日／補班（平日票價）</option></select></div>
+                        <button onclick="submitHolidayDates()" style="flex:1; background:var(--success-color);">✅ 加入</button>
+                    </div>
+                    <div id="holidayAdminList" style="margin-top:10px; max-height:160px; overflow-y:auto;"></div>
+                </div>
             </div>
 
             <div id="bZoneGoods" style="display:none;">
@@ -691,6 +717,7 @@
                             <th>整天覆蓋<br>匯入</th>
                             <th>歷史紀錄<br>編輯</th>
                             <th>周邊商品<br>折扣修改</th>
+                            <th>假日日期<br>維護</th>
                         </tr></thead>
                         <tbody id="permMatrixBody"></tbody>
                     </table>
@@ -902,7 +929,8 @@
                         <input type="date" id="stockStart"><span>至</span><input type="date" id="stockEnd">
                         <button onclick="triggerStockQuery()" style="background:var(--primary-color);">確定查詢</button>
                         <label class="chk"><input type="checkbox" id="stockShowAll" onchange="renderStockView()"> 顯示區間內無異動的商品</label>
-                        <button onclick="exportStockMatrix()" style="background:var(--success-color); margin-left:auto;">📥 匯出 CSV</button>
+                        <button id="btnStockReorder" onclick="toggleStockReorder()" style="background:#7f8c8d; margin-left:auto;">↕️ 調整順序</button>
+                        <button onclick="exportStockMatrix()" style="background:var(--success-color);">📥 匯出 CSV</button>
                     </div>
                     <div id="stockSummaryHint" style="font-size:12px; color:#718096; margin:0 0 6px 2px;"></div>
                     <div class="stock-scroll" id="stockScrollBox">
@@ -919,7 +947,7 @@
 </div>
 
 <script>
-const APP_VERSION = "v82"; // 🎯 版本號只需改這一行，分頁標題與畫面標題列的小字會一起更新
+const APP_VERSION = "v84"; // 🎯 版本號只需改這一行，分頁標題與畫面標題列的小字會一起更新
 document.title = `VOLARE 智慧雲端安全營運系統 ${APP_VERSION}`; document.getElementById('appVersionTag').innerText = APP_VERSION;
 const CLOUD_DB_URL = "https://script.google.com/macros/s/AKfycbxQ6ftQdBt7kBiVNx9U-zRXiDG8i1FVn4gSnvYpdDD0GUjDAvh5892Sn43yJC3jMZBS/exec";
 
@@ -982,12 +1010,46 @@ const PERMISSION_DEFS = [
     { key: 'clearBefore', label: '雲端資料定期清理' },
     { key: 'overrideImport', label: '整天覆蓋匯入' },
     { key: 'historyEdit', label: '歷史紀錄編輯' },
-    { key: 'discountAdmin', label: '周邊商品折扣修改' }
+    { key: 'discountAdmin', label: '周邊商品折扣修改' },
+    { key: 'holidayAdmin', label: '假日日期維護' }
 ];
 let staffPermissions = JSON.parse(localStorage.getItem('volare_staff_permissions_v1')) || {};
 const DISCOUNT_MIN = 0.10, DISCOUNT_MAX = 0.99;
 let discountOptions = JSON.parse(localStorage.getItem('volare_discount_options_v1')) || { "0.95": 0, "0.9": 0, "0.85": 0, "0.8": 0, "0.5": 0 };
 let deletedDiscountKeys = JSON.parse(localStorage.getItem('volare_deleted_discounts')) || {};
+// 🎯 v83：假日日期表與「今日票價鎖定」。
+// holidayRules 結構 { "YYYY-MM-DD": { v: "H"(假日) | "W"(平日/補班) | ""(已刪除), t: 最後異動時間 } }，同一日期以 t 較新者為準。
+// priceModeLock 結構 { date, mode, by, t }：當天第一個人確認後全店共用，雲端同步，t 較新者為準。
+let holidayRules = JSON.parse(localStorage.getItem('volare_holiday_rules_v1')) || {};
+let priceModeLock = JSON.parse(localStorage.getItem('volare_price_lock_v1')) || null;
+// 🎯 v84：周邊商品顯示順序。條碼是純數字，JS 物件會自動把數字 key 由小到大排，無法靠 key 順序記錄，
+// 所以改用獨立的順序清單 { list: [條碼...], t: 最後調整時間 }，同步時整份以 t 較新者為準。
+let goodsOrder = JSON.parse(localStorage.getItem('volare_goods_order_v1')) || { list: [], t: 0 };
+let stockReorderMode = false;
+function getGoodsKeys() {
+    let all = Object.keys(goodsDatabase); let seen = {}; let out = [];
+    (goodsOrder.list || []).forEach(bc => { if (goodsDatabase[bc] !== undefined && !seen[bc]) { seen[bc] = true; out.push(bc); } });
+    all.forEach(bc => { if (!seen[bc]) { seen[bc] = true; out.push(bc); } }); // 沒在順序清單裡的（新商品／升級前的舊商品）排在最後
+    return out;
+}
+function persistGoodsOrder() { localStorage.setItem('volare_goods_order_v1', JSON.stringify(goodsOrder)); }
+// mode: 'up' | 'down' | 'top' | 'bottom'
+function moveGoods(barcode, mode) {
+    let keys = getGoodsKeys(); let i = keys.indexOf(barcode); if (i < 0) return;
+    keys.splice(i, 1);
+    let ni = mode === 'up' ? Math.max(0, i - 1) : mode === 'down' ? Math.min(keys.length, i + 1) : mode === 'top' ? 0 : keys.length;
+    keys.splice(ni, 0, barcode);
+    goodsOrder = { list: keys, t: Date.now() }; persistGoodsOrder();
+    pushLog(`調整周邊商品順序：${goodsDatabase[barcode].name}（${{ up: '上移', down: '下移', top: '移到最上', bottom: '移到最下' }[mode]}）`);
+    renderBackendLists(); initStaticDropdowns(); renderStockView(); saveAndRender();
+}
+function toggleStockReorder() {
+    stockReorderMode = !stockReorderMode;
+    let btn = document.getElementById('btnStockReorder');
+    btn.innerText = stockReorderMode ? '✅ 完成調整順序' : '↕️ 調整順序';
+    btn.style.background = stockReorderMode ? 'var(--accent-color)' : '#7f8c8d';
+    renderStockView();
+}
 
 
 let systemStorage = {};
@@ -1112,6 +1174,7 @@ function executeActualLoginLogic() {
         currentOperatorName = u; initStaticDropdowns(); switchForm('Ticket'); loadDateData(); updateInputLockUI(); pullFromCloud(true); 
         renderPendingSyncBanner();
         showMsg('【提醒】', `🔓 歡迎登入！\n解鎖帳號：${u}`);
+        ensureDailyPriceMode(); // 🎯 v83：今天第一次登入時跳窗確認票價
     } else { toggleLoginButtonState(false, "登入解鎖系統"); errDiv.innerText = "❌ 登入帳號或密碼不正確，請重新輸入！"; errDiv.style.display = 'block'; }
 }
 
@@ -1217,7 +1280,7 @@ function restoreLocalSnapshotValues(snapshot) {
 function sendPushPayload(activeDate, syncTimeout) {
     let salesForThisDay = {};
     if (systemStorage[activeDate]) salesForThisDay[activeDate] = systemStorage[activeDate];
-    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff, currentPriceMode: currentPriceMode, discountOptions: discountOptions, deletedDiscountKeys: deletedDiscountKeys, staffPermissions: staffPermissions } } };
+    let payload = { action: "write", data: { sales: salesForThisDay, config: { initialLoginDatabase: initialLoginDatabase, staffDatabase: staffDatabase, ticketTypeDatabase: ticketTypeDatabase, goodsDatabase: goodsDatabase, vendorDatabase: vendorDatabase, programList: programList, deletedTicketKeys: deletedTicketKeys, deletedGoodsKeys: deletedGoodsKeys, deletedVendorKeys: deletedVendorKeys, deletedStaffKeys: deletedStaffKeys, historyEditAuthorizedStaff: historyEditAuthorizedStaff, currentPriceMode: currentPriceMode, discountOptions: discountOptions, deletedDiscountKeys: deletedDiscountKeys, staffPermissions: staffPermissions, holidayRules: holidayRules, priceModeLock: priceModeLock, goodsOrder: goodsOrder } } };
     return fetch(CLOUD_DB_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
     .then(res => res.json()).then(resData => {
         clearTimeout(syncTimeout); isSyncing = false;
@@ -1364,6 +1427,16 @@ function unpackCloudConfig(cfg) {
         syncTicketPrice();
     }
 
+    // 🎯 v83：假日日期表（同一日期以 t 較新者為準）與今日票價鎖定（t 較新者為準，全店共用）
+    if (cfg.holidayRules) { for (let k in cfg.holidayRules) { let c = cfg.holidayRules[k]; let l = holidayRules[k]; if (!l || (c.t || 0) > (l.t || 0)) holidayRules[k] = c; } }
+    if (cfg.goodsOrder && Array.isArray(cfg.goodsOrder.list) && (cfg.goodsOrder.t || 0) > (goodsOrder.t || 0)) { goodsOrder = cfg.goodsOrder; persistGoodsOrder(); }
+    if (cfg.priceModeLock && cfg.priceModeLock.date && (!priceModeLock || (cfg.priceModeLock.t || 0) > (priceModeLock.t || 0))) priceModeLock = cfg.priceModeLock;
+    if (getTodayLock() && currentPriceMode !== priceModeLock.mode) { // 今日已被鎖定：一律以鎖定的模式為準
+        currentPriceMode = priceModeLock.mode; localStorage.setItem('volare_price_mode', currentPriceMode); renderPriceModeButtons(); syncTicketPrice();
+    }
+    if (getTodayLock() && document.getElementById('priceDayModal').style.display === 'block') document.getElementById('priceDayModal').style.display = 'none'; // 別台剛確認完，本機視窗自動收起
+    persistPriceLock();
+
     // 🎯 合併完成後，把所有已標記刪除的 key 從各資料庫中徹底移除，不管是哪台裝置寫回來的舊資料都會被排除
     applyDeletionTombstones(ticketTypeDatabase, deletedTicketKeys);
     applyDeletionTombstones(goodsDatabase, deletedGoodsKeys);
@@ -1375,8 +1448,8 @@ function unpackCloudConfig(cfg) {
     localStorage.setItem('volare_deleted_tickets', JSON.stringify(deletedTicketKeys)); localStorage.setItem('volare_deleted_goods', JSON.stringify(deletedGoodsKeys)); localStorage.setItem('volare_deleted_vendors', JSON.stringify(deletedVendorKeys)); localStorage.setItem('volare_deleted_staff', JSON.stringify(deletedStaffKeys));
     localStorage.setItem('volare_history_edit_staff', JSON.stringify(historyEditAuthorizedStaff));
     localStorage.setItem('volare_discount_options_v1', JSON.stringify(discountOptions)); localStorage.setItem('volare_deleted_discounts', JSON.stringify(deletedDiscountKeys));
-    persistPermissions();
-    populateDiscountSelects();
+    persistPermissions(); persistPriceLock(); persistGoodsOrder();
+    populateDiscountSelects(); renderHolidayAdmin();
     if (document.getElementById('discountAdminList') && document.getElementById('discountAdminZone').style.display !== 'none') renderDiscountAdmin();
     if (document.getElementById('backendControlZone') && document.getElementById('backendControlZone').style.display === 'block') { renderPermMatrix(); applyPermissionVisibility(); }
 }
@@ -1474,7 +1547,7 @@ function initStaticDropdowns() {
     const tSelect = document.getElementById('ticketType'); tSelect.innerHTML = '';
     for(let tName in ticketTypeDatabase) { tSelect.innerHTML += `<option value="${tName}">${tName}</option>`; }
     const gSelect = document.getElementById('goodsType'); gSelect.innerHTML = '';
-    for(let barcode in goodsDatabase) { gSelect.innerHTML += `<option value="${barcode}">${goodsDatabase[barcode].name}</option>`; }
+    getGoodsKeys().forEach(barcode => { gSelect.innerHTML += `<option value="${barcode}">${goodsDatabase[barcode].name}</option>`; });
     
     const tVendSelect = document.getElementById('ticketMemberId'); tVendSelect.innerHTML = '';
     const gVendSelect = document.getElementById('goodsMemberId'); gVendSelect.innerHTML = '';
@@ -1502,13 +1575,92 @@ function syncTicketPrice() {
     document.getElementById('ticketPrice').value = p;
 }
 
+// ===== 🎯 v83：每日票價確認＋全店鎖定 =====
+function getHolidayExpectedMode(dateStr) {
+    let r = holidayRules[dateStr];
+    if (r && r.v === 'H') return { mode: 'holiday', why: '假日日期表' };
+    if (r && r.v === 'W') return { mode: 'weekday', why: '平日(補班)日期表' };
+    let d = new Date(dateStr + 'T00:00:00'); let wd = d.getDay();
+    if (wd === 0 || wd === 6) return { mode: 'holiday', why: '週末' };
+    return { mode: 'weekday', why: '一般平日' };
+}
+function priceModeText(m) { return m === 'holiday' ? '假日票價' : '平日票價'; }
+function fmtDateSlash(dateStr) { const wk = ['日', '一', '二', '三', '四', '五', '六']; let d = new Date(dateStr + 'T00:00:00'); return dateStr.replace(/-/g, '/') + `（週${wk[d.getDay()]}）`; }
+function getTodayLock() { let t = getLocalDateString(new Date()); return (priceModeLock && priceModeLock.date === t) ? priceModeLock : null; }
+function persistPriceLock() { localStorage.setItem('volare_price_lock_v1', JSON.stringify(priceModeLock)); localStorage.setItem('volare_holiday_rules_v1', JSON.stringify(holidayRules)); }
+
+// 登入後（以及跨日、其他分頁停留過夜時）檢查：今天還沒有人確認過票價，就跳出視窗，需人工按「確認並繼續」才會生效
+function ensureDailyPriceMode() {
+    if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') return;
+    if (document.getElementById('priceDayModal').style.display === 'block') return;
+    if (getTodayLock()) { // 今天已有人確認過：直接沿用全店鎖定的模式，不再跳窗
+        if (currentPriceMode !== priceModeLock.mode) { currentPriceMode = priceModeLock.mode; localStorage.setItem('volare_price_mode', currentPriceMode); renderPriceModeButtons(); syncTicketPrice(); }
+        return;
+    }
+    let today = getLocalDateString(new Date()); let exp = getHolidayExpectedMode(today);
+    document.getElementById('priceDayBody').innerHTML = `<strong style="font-size:20px;">${fmtDateSlash(today)}</strong><br>系統判定為 <strong style="font-size:22px; color:${exp.mode === 'holiday' ? 'var(--accent-color)' : 'var(--success-color)'};">${priceModeText(exp.mode)}</strong><br><span style="font-size:12px; color:#888;">（依據：${exp.why}）</span><br>請確認是否繼續？`;
+    document.getElementById('priceDayModal').setAttribute('data-mode', exp.mode);
+    document.getElementById('priceDayModal').setAttribute('data-date', today);
+    document.getElementById('priceDayModal').style.display = 'block';
+}
+function confirmDailyPriceMode() {
+    let m = document.getElementById('priceDayModal'); let mode = m.getAttribute('data-mode'); let date = m.getAttribute('data-date');
+    if (getLocalDateString(new Date()) !== date) { m.style.display = 'none'; ensureDailyPriceMode(); return; } // 視窗放過午夜才按：重新判斷新的一天
+    if (getTodayLock()) { m.style.display = 'none'; ensureDailyPriceMode(); return; } // 剛好別台已先確認
+    m.style.display = 'none';
+    priceModeLock = { date: date, mode: mode, by: currentOperatorName, t: Date.now() };
+    currentPriceMode = mode; localStorage.setItem('volare_price_mode', mode); persistPriceLock();
+    renderPriceModeButtons(); syncTicketPrice();
+    pushLog(`確認今日票價：${fmtDateSlash(date)} 為${priceModeText(mode)}`);
+    saveAndRender();
+}
+// 標題列手動切換：與今日鎖定相同則不動作；不同則需二次確認（每日第一次確認後，改票價應該是罕見情況）
 function setPriceMode(mode) {
-    currentPriceMode = mode;
-    localStorage.setItem('volare_price_mode', mode);
-    renderPriceModeButtons();
-    syncTicketPrice();
-    pushLog(`切換票價模式為：${mode === 'holiday' ? '假日' : '平日'}`);
-    saveAndRender(); // 🎯 立即推送到雲端，確保任何裝置登入後都看到同一個全店共用的平假日狀態，不需各自切換
+    if (mode === currentPriceMode) return;
+    let today = getLocalDateString(new Date()); let lk = getTodayLock();
+    let who = lk ? `（${escHtml(lk.by)} 於 ${new Date(lk.t).toLocaleTimeString()} 確認）` : '';
+    showMsg('【修改票價確認】', `今日（${fmtDateSlash(today)}）目前為 <strong>${priceModeText(currentPriceMode)}</strong>${who}。<br>確定要改成 <strong style="color:var(--accent-color);">${priceModeText(mode)}</strong> 嗎？<br><span style="font-size:13px; color:#888;">修改後全店所有電腦會同步改變，並留下操作紀錄。</span>`, true, function(approved) {
+        if (!approved) return;
+        priceModeLock = { date: today, mode: mode, by: currentOperatorName, t: Date.now() };
+        currentPriceMode = mode; localStorage.setItem('volare_price_mode', mode); persistPriceLock();
+        renderPriceModeButtons(); syncTicketPrice();
+        pushLog(`手動修改今日票價為：${priceModeText(mode)}`);
+        saveAndRender();
+    });
+}
+
+// ===== 假日日期表維護 =====
+function canManageHolidays() { return hasPermission(currentOperatorName, 'holidayAdmin'); }
+function activeHolidayDates() { return Object.keys(holidayRules).filter(k => holidayRules[k].v === 'H' || holidayRules[k].v === 'W').sort(); }
+function renderHolidayAdmin() {
+    let zone = document.getElementById('holidayAdminZone'); if (!zone) return;
+    zone.style.display = canManageHolidays() ? 'block' : 'none';
+    if (!canManageHolidays()) return;
+    let keys = activeHolidayDates().reverse();
+    document.getElementById('holidayAdminList').innerHTML = keys.length === 0 ? '<span style="color:#999; font-size:13px;">目前沒有手動設定的日期（週六、週日預設自動視為假日）</span>' :
+        keys.map(k => `<span class="discount-chip">${fmtDateSlash(k)} ${holidayRules[k].v === 'H' ? '<strong style="color:var(--accent-color);">假日</strong>' : '<strong style="color:var(--success-color);">平日(補班)</strong>'} <button class="btn-sm btn-accent" onclick="deleteHolidayDate('${k}')">刪除</button></span>`).join('');
+}
+function submitHolidayDates() {
+    if (!canManageHolidays()) { showMsg('【提醒】', "🔒 您的帳號沒有「假日日期維護」的權限！"); return; }
+    let s1 = document.getElementById('holidayStart').value; let e1 = document.getElementById('holidayEnd').value || s1; let v = document.getElementById('holidayType').value;
+    if (!s1) { showMsg('【提醒】', "請先選擇日期！"); return; }
+    if (e1 < s1) { showMsg('【提醒】', "結束日期不能早於起始日期！"); return; }
+    let d = new Date(s1 + 'T00:00:00'); let end = new Date(e1 + 'T00:00:00'); let n = 0;
+    if ((end - d) / 86400000 > 60) { showMsg('【提醒】', "一次最多設定 60 天，請分批新增！"); return; }
+    let now = Date.now();
+    while (d <= end) { holidayRules[getLocalDateString(d)] = { v: v, t: now }; n++; d.setDate(d.getDate() + 1); }
+    persistPriceLock(); pushLog(`設定${v === 'H' ? '假日' : '平日(補班)'}日期：${s1}${e1 !== s1 ? ' ~ ' + e1 : ''}（共 ${n} 天）`);
+    document.getElementById('holidayStart').value = ''; document.getElementById('holidayEnd').value = '';
+    renderHolidayAdmin(); saveAndRender();
+    showMsg('【提醒】', `📅 已設定 ${n} 天，全店同步後生效。<br>若設定的是「今天」且今天已確認過票價，需用標題列「平日／假日」按鈕手動修改。`);
+}
+function deleteHolidayDate(k) {
+    if (!canManageHolidays()) { showMsg('【提醒】', "🔒 您的帳號沒有「假日日期維護」的權限！"); return; }
+    showMsg('【刪除確認】', `確定要刪除 ${fmtDateSlash(k)} 的設定嗎？<br>（刪除後該日回到預設：週六日為假日，其餘為平日）`, true, function(approved) {
+        if (!approved) return;
+        holidayRules[k] = { v: '', t: Date.now() }; persistPriceLock(); pushLog(`刪除假日日期設定：${k}`);
+        renderHolidayAdmin(); saveAndRender();
+    });
 }
 
 function renderPriceModeButtons() {
@@ -1574,7 +1726,7 @@ function applyPermissionVisibility() {
         if (ok) { el.style.borderTop = first ? 'none' : '1px solid #fca5a5'; el.style.marginTop = first ? '0' : '14px'; el.style.paddingTop = first ? '0' : '14px'; first = false; anyVisible = true; }
     });
     document.getElementById('masterClearDataZone').style.display = anyVisible ? 'block' : 'none';
-    renderDiscountAdmin();
+    renderDiscountAdmin(); renderHolidayAdmin();
 }
 
 function persistDiscounts() { localStorage.setItem('volare_discount_options_v1', JSON.stringify(discountOptions)); localStorage.setItem('volare_deleted_discounts', JSON.stringify(deletedDiscountKeys)); }
@@ -1947,7 +2099,7 @@ function renderBackendLists() {
     });
     
     let gList = document.getElementById('backendGoodsList'); gList.innerHTML = '<h4>現有周邊品項清單</h4>';
-    for(let barcode in goodsDatabase) { gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><div><button class="btn-sm" style="background:#3498db;" onclick="editGoods('${barcode}')">✏️ 編輯</button><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div></div>`; }
+    let gKeys = getGoodsKeys(); gKeys.forEach((barcode, gi) => { let gUp = gi > 0 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveGoods('${barcode}', 'up')">⬆️</button>` : ''; let gDown = gi < gKeys.length - 1 ? `<button class="btn-sm" style="background:#3498db; width:auto; padding:2px 6px; margin-right:4px;" onclick="moveGoods('${barcode}', 'down')">⬇️</button>` : ''; gList.innerHTML += `<div class="backend-list-item"><span><strong>[${barcode}]</strong> ${goodsDatabase[barcode].name} ($${goodsDatabase[barcode].price})</span><div>${gUp}${gDown}<button class="btn-sm" style="background:#3498db;" onclick="editGoods('${barcode}')">✏️ 編輯</button><button class="btn-sm btn-accent" onclick="deleteGoods('${barcode}')">🗑️ 刪除</button></div></div>`;  });
 
     let vList = document.getElementById('backendVendorList'); vList.innerHTML = '<h4>現有合作櫃位/廠商資料庫名冊</h4>';
     for(let vId in vendorDatabase) { let labelName = (vId === "--") ? "無" : vendorDatabase[vId]; vList.innerHTML += `<div class="backend-list-item"><span><strong>[${vId}]</strong> ${labelName}</span><div>${vId !== "--" ? `<button class="btn-sm" style="background:#3498db;" onclick="editVendor('${vId}')">✏️ 編輯</button>` : ''}<button class="btn-sm btn-accent" onclick="deleteVendor('${vId}')">🗑️ 刪除</button></div></div>`; }
@@ -2064,7 +2216,7 @@ function triggerStockQuery(silent) {
 // 核心計算：回傳 { dates, rows, ... }（畫面與匯出共用，確保兩邊一致）
 function computeStockMatrix(start, end, showAll) {
     let allDates = Object.keys(systemStorage).sort();
-    let barcodes = Object.keys(goodsDatabase);
+    let barcodes = getGoodsKeys();
     let opening = {}, daily = {}; // daily[barcode][date] = { sold, restock }
     barcodes.forEach(bc => { opening[bc] = goodsDatabase[bc].initStock || 0; daily[bc] = {}; });
     allDates.forEach(d => {
@@ -2104,23 +2256,26 @@ function renderStockView() {
     let head = document.getElementById('stockHead'); let body = document.getElementById('stockTableBody'); if (!head || !body) return;
     ensureStockDefaults();
     let start = stockRangeStart || document.getElementById('stockStart').value; let end = stockRangeEnd || document.getElementById('stockEnd').value;
-    let showAll = document.getElementById('stockShowAll').checked;
+    let showAll = document.getElementById('stockShowAll').checked || stockReorderMode; // 調整順序時一律列出全部商品，才不會因為隱藏的商品讓上下移動看起來沒反應
+    document.getElementById('stockScrollBox').classList.toggle('reorder', stockReorderMode);
     let m = computeStockMatrix(start, end, showAll);
     let spansYears = start.substring(0, 4) !== end.substring(0, 4);
 
-    let h = `<tr><th class="sc1">國際條碼</th><th class="sc2">商品品名</th><th class="sc3">商品單價</th><th>初始庫存</th><th>期初庫存<br><small>(${start} 前)</small></th>`;
+    let h = `<tr>${stockReorderMode ? '<th class="sc0">順序調整</th>' : ''}<th class="sc1">國際條碼</th><th class="sc2">商品品名</th><th class="sc3">商品單價</th><th>初始庫存</th><th>期初庫存<br><small>(${start} 前)</small></th>`;
     m.dates.forEach(d => { h += stockDateHeader(d, spansYears); });
     h += `<th>區間售出合計</th><th>區間補貨合計</th><th>期末庫存<br><small>(${end})</small></th><th>安全庫存</th><th>安全狀態</th></tr>`;
     head.innerHTML = h;
 
-    let colCount = 5 + m.dates.length + 5;
+    let colCount = 5 + m.dates.length + 5 + (stockReorderMode ? 1 : 0);
     if (m.rows.length === 0) {
         body.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:30px; color:#718096;">此區間（${start} ～ ${end}）內所有周邊商品皆無進出貨異動。<br>如需查看全部商品的庫存，請勾選上方「顯示區間內無異動的商品」。</td></tr>`;
     } else {
         let out = '';
         m.rows.forEach(r => {
             let isAlert = r.endStock < r.safetyStock;
-            out += `<tr><td class="sc1">${escHtml(r.barcode)}</td><td class="sc2"><strong>${escHtml(r.name)}</strong></td><td class="sc3">$ ${r.price}</td><td class="num">${r.initStock}</td><td class="num">${r.opening}</td>`;
+            let rb = escHtml(r.barcode);
+            let ctl = stockReorderMode ? `<td class="sc0"><button class="reorder-btn" title="移到最上" onclick="moveGoods('${rb}','top')">⏫</button><button class="reorder-btn" title="上移" onclick="moveGoods('${rb}','up')">⬆️</button><button class="reorder-btn" title="下移" onclick="moveGoods('${rb}','down')">⬇️</button><button class="reorder-btn" title="移到最下" onclick="moveGoods('${rb}','bottom')">⏬</button></td>` : '';
+            out += `<tr>${ctl}<td class="sc1">${escHtml(r.barcode)}</td><td class="sc2"><strong>${escHtml(r.name)}</strong></td><td class="sc3">$ ${r.price}</td><td class="num">${r.initStock}</td><td class="num">${r.opening}</td>`;
             m.dates.forEach(d => {
                 let c = r.dayMap[d]; let cell = '';
                 if (c && c.sold > 0) cell += `<div class="dsold">-${c.sold}</div>`;
@@ -2133,7 +2288,7 @@ function renderStockView() {
         body.innerHTML = out;
     }
     let hint = document.getElementById('stockSummaryHint');
-    if (hint) hint.innerText = `查詢區間 ${start} ～ ${end}：${m.rows.length} 項商品、${m.dates.length} 個日期有進出貨異動` + (m.hiddenCount > 0 && !showAll ? `（另有 ${m.hiddenCount} 項商品此區間無異動，已隱藏）` : '') + `。　期初庫存 ＋ 各日異動 ＝ 期末庫存；紅色為售出、藍色為補貨。`;
+    if (hint) hint.innerText = (stockReorderMode ? '↕️ 調整順序模式：已列出全部商品，點每列左側按鈕調整，完成後按「完成調整順序」。　' : '') + `查詢區間 ${start} ～ ${end}：${m.rows.length} 項商品、${m.dates.length} 個日期有進出貨異動` + (m.hiddenCount > 0 && !showAll ? `（另有 ${m.hiddenCount} 項商品此區間無異動，已隱藏）` : '') + `。　期初庫存 ＋ 各日異動 ＝ 期末庫存；紅色為售出、藍色為補貨。`;
 }
 
 function csvEscape(v) { v = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
@@ -2190,7 +2345,7 @@ function loadDateData() {
     if(sortedTicketKeys.length === 0) sumTBody.innerHTML = '<div class="summary-list-empty">今日尚無票券銷售</div>';
 
     let sumGBody = document.getElementById('sumGoodsTableBody'); sumGBody.innerHTML = '';
-    let goodsOrderByName = Object.keys(goodsDatabase).map(bc => goodsDatabase[bc].name);
+    let goodsOrderByName = getGoodsKeys().map(bc => goodsDatabase[bc].name);
     let sortedGoodsKeys = goodsOrderByName.filter(k => rGoodsMap[k] !== undefined);
     Object.keys(rGoodsMap).forEach(k => { if (!sortedGoodsKeys.includes(k)) sortedGoodsKeys.push(k); }); // 涵蓋已售出但已從後台刪除的商品
     sortedGoodsKeys.forEach(k => { sumGBody.innerHTML += `<div class="summary-list-item"><span class="item-name">${k}</span><span class="item-value" style="color:var(--success-color);">${rGoodsMap[k]} 個</span></div>`; });
@@ -2451,8 +2606,12 @@ document.addEventListener('click', function(e) {
     }
 });
 
+setInterval(ensureDailyPriceMode, 60000);
+document.addEventListener('visibilitychange', function() { if (!document.hidden) ensureDailyPriceMode(); });
+
 document.addEventListener('keypress', function(e) {
     if (e.key !== 'Enter') return; if (e.target.tagName === 'TEXTAREA') return; 
+    if (document.getElementById('priceDayModal').style.display === 'block') { e.preventDefault(); return; } // 🎯 v83：今日票價確認視窗必須用滑鼠點「確認並繼續」，Enter 不生效
     if (e.target.id === 'barcodeScanner') return; // 🎯 條碼掃描框已有專屬處理邏輯（先帶入表單、不自動送出），不可被此處的全域規則重複處理，否則會繞過人工確認折扣的步驟直接送出
     if (document.getElementById('loginGatekeeperOverlay').style.display !== 'none') { preLoginSyncAndAttempt(); } else if (document.getElementById('globalMsgModal').style.display === 'block') { closeMsgModal(); } else if (document.getElementById('auditModal').style.display === 'block') { submitModalEdit(); } else if (document.getElementById('changeMyPasswordModal').style.display === 'block') { submitChangeMyPassword(); } else if (document.getElementById('customerProfileModal').style.display === 'block') { return; } else if (document.getElementById('backendModal').style.display === 'block') {
         if (document.getElementById('backendAuthZone').style.display !== 'none') { verifyBackendPassword(); } else if (currentBackendTab === 'Prog') submitNewProgram(); else if (currentBackendTab === 'Ticket') submitNewTicket(); else if (currentBackendTab === 'Goods') submitNewGoods(); else if (currentBackendTab === 'Vend') submitNewVendor(); else if (currentBackendTab === 'MasterUsers') submitMasterGateAccount(); else if (currentBackendTab === 'Users') submitNewStaffAccount();
